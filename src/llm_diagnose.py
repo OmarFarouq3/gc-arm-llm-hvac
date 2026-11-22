@@ -111,7 +111,10 @@ def build_prompt(rule_text, context, extra_lines=None):
         "[User]\nPlease reply in JSON with three fields: "
         '1. "validity": true or false; '
         f'2. "label": one of {{{labels}}}; '
-        f'3. "reason": concise (<={SETTINGS["max_reason_words"]} words) explanation.'
+        f'3. "reason": concise (<={SETTINGS["max_reason_words"]} words) explanation. '
+        # Added after the first test: the model read "validity" as "the rule is true".
+        "validity is true only if the rule indicates an anomaly (labels 1-3); "
+        "for label 0 it is false."
     )
     return [{"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user}]

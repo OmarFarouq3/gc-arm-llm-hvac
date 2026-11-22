@@ -1,46 +1,46 @@
 rule_id,run,antecedent,consequent,support,confidence,lift,use_rag,context_sources,model,temperature,top_p,validity,label,reason,failed,error,raw,latency_s,prompt_tokens,completion_tokens,total_tokens
-0,1,OA_TEMP=high,CWL_PRI_SW_TEMPSPT=low,0.21,0.93,3.1,False,,qwen3.5:4b,0.7,0.7,True,2,"High outdoor temperature typically increases cooling load, requiring higher compressor output. A low setpoint with high ambient conditions suggests incorrect control logic or sensor malfunction, indicating an operational issue rather than a design flaw.",False,,"{
+0,1,OA_TEMP=high,CWL_PRI_SW_TEMPSPT=low,0.21,0.93,3.1,False,,qwen3.5:4b,0.7,0.7,False,0,"This rule describes a normal HVAC control logic: when outdoor air temperature is high, the cooling water loop setpoint reduces to prevent overcooling or energy waste. This is standard operational behavior, not an anomaly.",False,,"{
+  ""validity"": false,
+  ""label"": ""0 Invalid rules"",
+  ""reason"": ""This rule describes a normal HVAC control logic: when outdoor air temperature is high, the cooling water loop setpoint reduces to prevent overcooling or energy waste. This is standard operational behavior, not an anomaly.""
+}",9.918267500004731,192,70,262
+0,2,OA_TEMP=high,CWL_PRI_SW_TEMPSPT=low,0.21,0.93,3.1,False,,qwen3.5:4b,0.7,0.7,False,0,"This rule lacks context and represents a plausible operational state rather than an anomaly. High outside temperature often requires lower cooling setpoints to maintain comfort, so this association does not inherently indicate a design or performance issue.",False,,"{
+  ""validity"": false,
+  ""label"": ""0 Invalid rules"",
+  ""reason"": ""This rule lacks context and represents a plausible operational state rather than an anomaly. High outside temperature often requires lower cooling setpoints to maintain comfort, so this association does not inherently indicate a design or performance issue.""
+}",9.323108400101773,192,69,261
+0,3,OA_TEMP=high,CWL_PRI_SW_TEMPSPT=low,0.21,0.93,3.1,False,,qwen3.5:4b,0.7,0.7,False,0,"The rule describes normal HVAC operation: when outdoor air temperature is high, the cooling water loop setpoint lowers to maximize efficiency and prevent overheating. This is a standard control strategy, not an anomaly.",False,,"{
+  ""validity"": false,
+  ""label"": ""0 Invalid rules"",
+  ""reason"": ""The rule describes normal HVAC operation: when outdoor air temperature is high, the cooling water loop setpoint lowers to maximize efficiency and prevent overheating. This is a standard control strategy, not an anomaly.""
+}",9.173479199991561,192,68,260
+1,1,CT_FAN_SPD_1=high AND OA_TEMP_WB=low,CT_SW_TEMP_1=high,0.04,0.71,2.4,False,,qwen3.5:4b,0.7,0.7,True,2,"High fan speed combined with low outdoor wet-bulb temperature typically cools the coil efficiently. A high supply air temperature indicates insufficient cooling performance under these favorable conditions, suggesting an operational issue like dirty coils or flow restriction.",False,,"{
   ""validity"": true,
   ""label"": ""2 Operational anomaly"",
-  ""reason"": ""High outdoor temperature typically increases cooling load, requiring higher compressor output. A low setpoint with high ambient conditions suggests incorrect control logic or sensor malfunction, indicating an operational issue rather than a design flaw.""
-}",9.422873400035314,167,67,234
-0,2,OA_TEMP=high,CWL_PRI_SW_TEMPSPT=low,0.21,0.93,3.1,False,,qwen3.5:4b,0.7,0.7,True,1,"High outdoor temperature typically increases cooling load, requiring higher compressor temperatures. A low setpoint during high heat suggests a design flaw or control logic error, indicating an anomaly rather than normal operation.",False,,"{
-  ""validity"": true,
-  ""label"": ""1 Design anomaly"",
-  ""reason"": ""High outdoor temperature typically increases cooling load, requiring higher compressor temperatures. A low setpoint during high heat suggests a design flaw or control logic error, indicating an anomaly rather than normal operation.""
-}",8.7779647000134,167,65,232
-0,3,OA_TEMP=high,CWL_PRI_SW_TEMPSPT=low,0.21,0.93,3.1,False,,qwen3.5:4b,0.7,0.7,True,2,"High outdoor temperature with low cooling setpoint indicates an active cooling cycle running at minimum capacity to manage heat gain, which is a typical operational response rather than a design flaw or performance degradation.",False,,"{
+  ""reason"": ""High fan speed combined with low outdoor wet-bulb temperature typically cools the coil efficiently. A high supply air temperature indicates insufficient cooling performance under these favorable conditions, suggesting an operational issue like dirty coils or flow restriction.""
+}",10.177992000011727,202,72,274
+1,2,CT_FAN_SPD_1=high AND OA_TEMP_WB=low,CT_SW_TEMP_1=high,0.04,0.71,2.4,False,,qwen3.5:4b,0.7,0.7,True,2,High fan speed combined with low outdoor wet-bulb temperature should not cause high supply air temperature. This indicates a control failure or mechanical fault in the cooling system.,False,,"{
   ""validity"": true,
   ""label"": ""2 Operational anomaly"",
-  ""reason"": ""High outdoor temperature with low cooling setpoint indicates an active cooling cycle running at minimum capacity to manage heat gain, which is a typical operational response rather than a design flaw or performance degradation.""
-}",8.765113500063308,167,65,232
-1,1,CT_FAN_SPD_1=high AND OA_TEMP_WB=low,CT_SW_TEMP_1=high,0.04,0.71,2.4,False,,qwen3.5:4b,0.7,0.7,True,2,High fan speed combined with low outdoor dry-bulb temperature causing high indoor coil temperature indicates a control failure or sensor drift. This operational mismatch suggests improper cooling performance rather than design flaws.,False,,"{
+  ""reason"": ""High fan speed combined with low outdoor wet-bulb temperature should not cause high supply air temperature. This indicates a control failure or mechanical fault in the cooling system.""
+}",8.267447800026275,202,61,263
+1,3,CT_FAN_SPD_1=high AND OA_TEMP_WB=low,CT_SW_TEMP_1=high,0.04,0.71,2.4,False,,qwen3.5:4b,0.7,0.7,True,2,High fan speed combined with low outdoor wet-bulb temperature typically indicates improper control logic or a malfunctioning sensor causing unnecessary energy consumption and potential system inefficiency.,False,,"{
   ""validity"": true,
   ""label"": ""2 Operational anomaly"",
-  ""reason"": ""High fan speed combined with low outdoor dry-bulb temperature causing high indoor coil temperature indicates a control failure or sensor drift. This operational mismatch suggests improper cooling performance rather than design flaws.""
-}",9.137478500022553,177,65,242
-1,2,CT_FAN_SPD_1=high AND OA_TEMP_WB=low,CT_SW_TEMP_1=high,0.04,0.71,2.4,False,,qwen3.5:4b,0.7,0.7,True,1,"The rule indicates high fan speed correlates with low outlet air temperature and high sensor reading, suggesting a control mismatch or sensor drift where cooling intent conflicts with measured output.",False,,"{
-  ""validity"": true,
-  ""label"": ""1 Design anomaly"",
-  ""reason"": ""The rule indicates high fan speed correlates with low outlet air temperature and high sensor reading, suggesting a control mismatch or sensor drift where cooling intent conflicts with measured output.""
-}",8.108524100040086,177,60,237
-1,3,CT_FAN_SPD_1=high AND OA_TEMP_WB=low,CT_SW_TEMP_1=high,0.04,0.71,2.4,False,,qwen3.5:4b,0.7,0.7,True,1,"High fan speed combined with low outdoor dry-bulb temperature typically indicates a control strategy error or sensor fault causing unnecessary cooling load, rather than normal operation or performance degradation.",False,,"{
-  ""validity"": true,
-  ""label"": ""1 Design anomaly"",
-  ""reason"": ""High fan speed combined with low outdoor dry-bulb temperature typically indicates a control strategy error or sensor fault causing unnecessary cooling load, rather than normal operation or performance degradation.""
-}",8.377673899987713,177,62,239
-2,1,CWL_SEC_LOAD=low AND CWL_SEC_PM_SPD_1=high,CWL_SEC_DP=low,0.03,0.65,1.9,False,,qwen3.5:4b,0.7,0.7,True,2,"Low cooling load with high fan speed typically indicates a control mismatch or sensor fault causing unnecessary energy consumption, rather than a design flaw or performance degradation.",False,,"{
+  ""reason"": ""High fan speed combined with low outdoor wet-bulb temperature typically indicates improper control logic or a malfunctioning sensor causing unnecessary energy consumption and potential system inefficiency.""
+}",8.128108800039627,202,60,262
+2,1,CWL_SEC_LOAD=low AND CWL_SEC_PM_SPD_1=high,CWL_SEC_DP=low,0.03,0.65,1.9,False,,qwen3.5:4b,0.7,0.7,True,2,"Low security load combined with high pump speed yet low discharge pressure suggests a potential control logic error or mechanical malfunction during operation, rather than expected performance behavior.",False,,"{
   ""validity"": true,
   ""label"": ""2 Operational anomaly"",
-  ""reason"": ""Low cooling load with high fan speed typically indicates a control mismatch or sensor fault causing unnecessary energy consumption, rather than a design flaw or performance degradation.""
-}",8.07570519996807,177,57,234
-2,2,CWL_SEC_LOAD=low AND CWL_SEC_PM_SPD_1=high,CWL_SEC_DP=low,0.03,0.65,1.9,False,,qwen3.5:4b,0.7,0.7,True,2,"The rule indicates that when a section has low load and high fan speed, the dampers remain low. This suggests the HVAC system is failing to modulate flow based on demand, likely causing unnecessary energy consumption or poor thermal control.",False,,"{
+  ""reason"": ""Low security load combined with high pump speed yet low discharge pressure suggests a potential control logic error or mechanical malfunction during operation, rather than expected performance behavior.""
+}",8.318033399991691,202,58,260
+2,2,CWL_SEC_LOAD=low AND CWL_SEC_PM_SPD_1=high,CWL_SEC_DP=low,0.03,0.65,1.9,False,,qwen3.5:4b,0.7,0.7,True,2,"Low secondary load with high primary speed suggests a mismatch where the system attempts to compensate excessively without matching demand, indicating an operational issue rather than design or performance degradation.",False,,"{
   ""validity"": true,
   ""label"": ""2 Operational anomaly"",
-  ""reason"": ""The rule indicates that when a section has low load and high fan speed, the dampers remain low. This suggests the HVAC system is failing to modulate flow based on demand, likely causing unnecessary energy consumption or poor thermal control.""
-}",9.98672050004825,177,74,251
-2,3,CWL_SEC_LOAD=low AND CWL_SEC_PM_SPD_1=high,CWL_SEC_DP=low,0.03,0.65,1.9,False,,qwen3.5:4b,0.7,0.7,True,2,"High pressure speed with low load indicates inefficient compressor operation, likely causing unnecessary energy consumption or potential system stress during normal low-load conditions.",False,,"{
+  ""reason"": ""Low secondary load with high primary speed suggests a mismatch where the system attempts to compensate excessively without matching demand, indicating an operational issue rather than design or performance degradation.""
+}",8.124725300003774,202,60,262
+2,3,CWL_SEC_LOAD=low AND CWL_SEC_PM_SPD_1=high,CWL_SEC_DP=low,0.03,0.65,1.9,False,,qwen3.5:4b,0.7,0.7,True,2,"Low secondary load combined with high primary fan speed typically causes excessive pressure drop at low flow, indicating an operational mismatch or control fault rather than a design flaw.",False,,"{
   ""validity"": true,
   ""label"": ""2 Operational anomaly"",
-  ""reason"": ""High pressure speed with low load indicates inefficient compressor operation, likely causing unnecessary energy consumption or potential system stress during normal low-load conditions.""
-}",7.316841499996372,177,54,231
+  ""reason"": ""Low secondary load combined with high primary fan speed typically causes excessive pressure drop at low flow, indicating an operational mismatch or control fault rather than a design flaw.""
+}",7.992452600039542,202,59,261
