@@ -1,0 +1,46 @@
+rule_id,run,antecedent,consequent,support,confidence,lift,use_rag,context_sources,model,temperature,top_p,validity,label,reason,failed,error,raw,latency_s,prompt_tokens,completion_tokens,total_tokens
+0,1,OA_TEMP=high,CWL_PRI_SW_TEMPSPT=low,0.21,0.93,3.1,True,02_control_sequence.md#11; 02_control_sequence.md#13; 01_plant_design.md#5; 01_plant_design.md#8; 02_control_sequence.md#17,qwen3.5:4b,0.7,0.7,True,2,The high outdoor temperature combined with a low chilled water setpoint indicates the cooling system is operating at full capacity despite extreme heat. This operational pattern suggests potential issues such as excessive fan speeds or valve malfunctions rather than normal design behavior.,False,,"{
+  ""validity"": true,
+  ""label"": ""2 Operational anomaly"",
+  ""reason"": ""The high outdoor temperature combined with a low chilled water setpoint indicates the cooling system is operating at full capacity despite extreme heat. This operational pattern suggests potential issues such as excessive fan speeds or valve malfunctions rather than normal design behavior.""
+}",13.62781640002504,563,74,637
+0,2,OA_TEMP=high,CWL_PRI_SW_TEMPSPT=low,0.21,0.93,3.1,True,02_control_sequence.md#11; 02_control_sequence.md#13; 01_plant_design.md#5; 01_plant_design.md#8; 02_control_sequence.md#17,qwen3.5:4b,0.7,0.7,True,2,"The rule shows high outdoor temp paired with low chilled water setpoint, which matches the described reset logic (expected behavior). However, the extremely high confidence (0.93) and lift (3.1) suggest this pattern is unusually dominant or potentially indicates a control system stuck in an aggressive mode rather than normal operation.",False,,"{
+  ""validity"": true,
+  ""label"": ""2 Operational anomaly"",
+  ""reason"": ""The rule shows high outdoor temp paired with low chilled water setpoint, which matches the described reset logic (expected behavior). However, the extremely high confidence (0.93) and lift (3.1) suggest this pattern is unusually dominant or potentially indicates a control system stuck in an aggressive mode rather than normal operation.""
+}",12.593401800026186,563,93,656
+0,3,OA_TEMP=high,CWL_PRI_SW_TEMPSPT=low,0.21,0.93,3.1,True,02_control_sequence.md#11; 02_control_sequence.md#13; 01_plant_design.md#5; 01_plant_design.md#8; 02_control_sequence.md#17,qwen3.5:4b,0.7,0.7,False,0,"The rule describes normal operational behavior where chilled water set-points reset lower in high outdoor temperatures to maximize cooling efficiency. This is a standard control strategy, not an anomaly or degradation.",False,,"{
+  ""validity"": false,
+  ""label"": ""0 Invalid rules"",
+  ""reason"": ""The rule describes normal operational behavior where chilled water set-points reset lower in high outdoor temperatures to maximize cooling efficiency. This is a standard control strategy, not an anomaly or degradation.""
+}",8.56688870000653,563,63,626
+1,1,CT_FAN_SPD_1=high AND OA_TEMP_WB=low,CT_SW_TEMP_1=high,0.04,0.71,2.4,True,02_control_sequence.md#13; 01_plant_design.md#8; 03_expert_rules.md#20; 01_plant_design.md#5; 03_expert_rules.md#28,qwen3.5:4b,0.7,0.7,True,2,"High fan speed with low approach indicates high energy consumption for poor heat transfer, not necessarily a design flaw or performance degradation yet.",False,,"{
+  ""validity"": true,
+  ""label"": ""2 Operational anomaly"",
+  ""reason"": ""High fan speed with low approach indicates high energy consumption for poor heat transfer, not necessarily a design flaw or performance degradation yet.""
+}",8.259389100014232,541,53,594
+1,2,CT_FAN_SPD_1=high AND OA_TEMP_WB=low,CT_SW_TEMP_1=high,0.04,0.71,2.4,True,02_control_sequence.md#13; 01_plant_design.md#8; 03_expert_rules.md#20; 01_plant_design.md#5; 03_expert_rules.md#28,qwen3.5:4b,0.7,0.7,True,2,"High fan speed with low wet-bulb should yield low leaving water temperature. High leaving temp indicates fouling or scaling reducing heat transfer efficiency, an operational anomaly.",False,,"{
+  ""validity"": true,
+  ""label"": ""2 Operational anomaly"",
+  ""reason"": ""High fan speed with low wet-bulb should yield low leaving water temperature. High leaving temp indicates fouling or scaling reducing heat transfer efficiency, an operational anomaly.""
+}",8.303560699918307,541,61,602
+1,3,CT_FAN_SPD_1=high AND OA_TEMP_WB=low,CT_SW_TEMP_1=high,0.04,0.71,2.4,True,02_control_sequence.md#13; 01_plant_design.md#8; 03_expert_rules.md#20; 01_plant_design.md#5; 03_expert_rules.md#28,qwen3.5:4b,0.7,0.7,True,2,"High fan speed with low wet-bulb should yield low tower leaving water due to efficient heat transfer. High leaving water under these conditions indicates fouling or scale reducing efficiency, representing an operational issue requiring maintenance.",False,,"{
+  ""validity"": true,
+  ""label"": ""2 Operational anomaly"",
+  ""reason"": ""High fan speed with low wet-bulb should yield low tower leaving water due to efficient heat transfer. High leaving water under these conditions indicates fouling or scale reducing efficiency, representing an operational issue requiring maintenance.""
+}",9.485561200068332,541,70,611
+2,1,CWL_SEC_LOAD=low AND CWL_SEC_PM_SPD_1=high,CWL_SEC_DP=low,0.03,0.65,1.9,True,01_plant_design.md#5; 01_plant_design.md#2; 02_control_sequence.md#10; 02_control_sequence.md#17; 01_plant_design.md#1,qwen3.5:4b,0.7,0.7,False,0,"This rule describes normal operational behavior where low load requires high pump speed to maintain setpoint differential pressure. It indicates expected system response, not an anomaly.",False,,"{
+  ""validity"": false,
+  ""label"": ""0 Invalid rules"",
+  ""reason"": ""This rule describes normal operational behavior where low load requires high pump speed to maintain setpoint differential pressure. It indicates expected system response, not an anomaly.""
+}",8.930440100026317,555,58,613
+2,2,CWL_SEC_LOAD=low AND CWL_SEC_PM_SPD_1=high,CWL_SEC_DP=low,0.03,0.65,1.9,True,01_plant_design.md#5; 01_plant_design.md#2; 02_control_sequence.md#10; 02_control_sequence.md#17; 01_plant_design.md#1,qwen3.5:4b,0.7,0.7,False,0,"This rule describes normal operational behavior where low cooling load causes pumps to reduce speed, lowering differential pressure. It lacks anomaly indicators like high pump speeds under low loads or pressure deviations.",False,,"{
+  ""validity"": false,
+  ""label"": ""0 Invalid rules"",
+  ""reason"": ""This rule describes normal operational behavior where low cooling load causes pumps to reduce speed, lowering differential pressure. It lacks anomaly indicators like high pump speeds under low loads or pressure deviations.""
+}",8.570471800048836,555,63,618
+2,3,CWL_SEC_LOAD=low AND CWL_SEC_PM_SPD_1=high,CWL_SEC_DP=low,0.03,0.65,1.9,True,01_plant_design.md#5; 01_plant_design.md#2; 02_control_sequence.md#10; 02_control_sequence.md#17; 01_plant_design.md#1,qwen3.5:4b,0.7,0.7,False,0,"The rule describes normal secondary loop control behavior: low load combined with high pump speed to maintain setpoint differential pressure. This is expected operation, not an anomaly.",False,,"{
+  ""validity"": false,
+  ""label"": ""0 Invalid rules"",
+  ""reason"": ""The rule describes normal secondary loop control behavior: low load combined with high pump speed to maintain setpoint differential pressure. This is expected operation, not an anomaly.""
+}",8.161449800012633,555,60,615

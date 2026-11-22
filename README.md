@@ -60,6 +60,33 @@ python src/gcarm.py          # Apriori demo on toy data
 python tests/test_gcarm.py   # tests for the mining code
 ```
 
+## LLM / RAG
+
+The rules are judged by a local LLM through Ollama's OpenAI-compatible API, with context
+retrieved from `knowledge_base/` (general HVAC knowledge + plant description).
+
+1. Install Ollama and pull the model: `ollama pull qwen3.5:4b` (Ollama must be running).
+2. In `.env` (copy from `.env.example`): `LLM_BASE_URL=http://localhost:11434/v1`,
+   `LLM_MODEL=qwen3.5:4b`, `OPENAI_API_KEY=ollama` (any value works for Ollama).
+   `LLM_MODEL` overrides `llm.model` in `config.yaml`; temperature, top_p and runs come from `config.yaml`.
+3. Test: open `notebooks/02_llm_test.ipynb` (paper Fig. 10 cases, test rules, time estimate),
+   or `python -m src.rag` to check retrieval.
+4. In code:
+
+```python
+from src.llm_diagnose import classify_all
+df = classify_all(rules, use_rag=True)    # rules in the format below; one row per (rule, run)
+```
+
+Results are saved to `results/tables/llm_rag.csv` (or `llm_norag.csv`). Columns include
+`validity`, `label` (0-3), `reason`, `failed`, `raw`, `latency_s` and token counts.
+`extra_lines_fn=lambda rule: [...]` adds extra lines to the prompt's `[Context]` (for Member D).
+
+Notes: the FAISS index is cached in `.cache/rag/` and rebuilt automatically when the knowledge base
+changes. Reasoning ("thinking") is switched off with `reasoning_effort="none"`, which makes a call about
+20x faster; `think=false` and `/no_think` are ignored by Ollama's OpenAI-compatible endpoint.
+The knowledge base must stay general: never write dataset-specific answers into it.
+
 ## Rule format (shared by B, C and D)
 
 `generate_rules()` returns a list of dicts. Every later step (LLM, labelling, evaluation) uses this format:

@@ -1,0 +1,12 @@
+# Control sequence and normal operating ranges
+
+- Chiller staging: a supervisory state machine sets the number of running chillers from the plant thermal load (chilled-water flow x supply/return temperature difference), with a 30-minute minimum wait between stage changes. More chillers running at high load is normal behaviour, not a fault.
+- Secondary pump staging: a state machine with a 30-minute wait sets the number of running secondary pumps. Running pumps share the same speed, and speed is modulated to hold the secondary-loop differential pressure (CWL_SEC_DP) at its set-point (CWL_SEC_DPSPT).
+- Chilled-water supply set-point reset: the chiller leaving-water set-point (CWL_PRI_SW_TEMPSPT) is reset linearly from outdoor dry-bulb temperature, 52 degF when outdoor air is 60 degF or colder down to 42 degF when it is 80 degF or warmer, updated hourly. A low chilled-water set-point in hot weather is therefore expected.
+- Each chiller modulates its cooling power so that its leaving chilled-water temperature (CHL_SW_TEMP) follows the set-point. Under normal control the leaving temperature stays within about 1 degF of the set-point.
+- Condenser water set-point: the tower leaving-water set-point (CT_SW_TEMPSPT) equals outdoor wet-bulb temperature + 8 degF approach, with a lower limit of 34 degF. All running tower fans run at the same speed, controlled by a feedback loop to track this set-point.
+- Tower leaving water is kept above 60 degF; in cold or dry weather the set-point is limited, so tower fans slow down or stop and the approach can be larger than 8 degF without any fault.
+- The three-way valve (TWV_CTRL) modulates to keep condenser water leaving the condenser loop above 60 degF; partial bypass in cool weather is normal, while bypass in hot weather is unusual.
+- Because set-points are reset from outdoor dry-bulb and wet-bulb temperatures, many variables (set-points, fan speeds, load, chiller power) rise and fall with the weather by design. Associations explained only by outdoor conditions or by the control sequence describe normal operation.
+- Typical normal values for water-cooled plants: chilled-water delta T about 8-12 degF at design load; condenser water delta T about 8-12 degF; cooling-tower approach about 5-10 degF; water-cooled chiller COP about 5-7 at good part-load conditions; plant COP usually about 3-5.
+- Part-load behaviour: at low load, delta T, chiller power and pump power all fall together; low power together with low load is expected and is not an anomaly.

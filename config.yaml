@@ -17,7 +17,7 @@ arm:
   max_itemset_size: 4      # our choice, to bound runtime
 
 llm:
-  model: gpt-4o-mini       # change after Member C's test
+  model: qwen3.5:4b        # local model via Ollama (Member C); LLM_MODEL in .env overrides
   temperature: 0.7         # paper setting (baseline)
   top_p: 0.7               # paper setting (baseline)
   runs: 3                  # paper: 3 runs per model
@@ -25,7 +25,7 @@ llm:
 
 rag:
   embedding_model: all-MiniLM-L6-v2
-  top_k: 3
+  top_k: 5
 
 labels:
   0: invalid / normal
