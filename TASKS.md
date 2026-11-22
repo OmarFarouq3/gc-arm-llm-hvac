@@ -15,23 +15,24 @@ Deadline: presentation and report on **7 December**.
 
 **Everyone**
 - [✅] Clone the repo, create a virtual environment, `pip install -r requirements.txt`
-- [✅ ] Skim the LBNL dataset paper (Granderson et al., Scientific Data, 2023), chiller plant section
+- [✅] Skim the LBNL dataset paper (Granderson et al., Scientific Data, 2023), chiller plant section
 
 **Member A: data**
-- [✅ ] Download the chiller plant dataset into `data/raw/chiller_plant/` (see `data/README.md`)
-- [✅ ] Explore in `notebooks/01_explore.ipynb`: rows, columns, sampling interval, date range, sensors + units
-- [✅ ] Find how fault labels are stored; list the 7 faults and severity levels
-- [✅ ] Deliverable: `data/dataset_notes.md`
+- [✅] Download the chiller plant dataset into `data/raw/chiller_plant/` (see `data/README.md`)
+- [✅] Explore in `notebooks/01_explore.ipynb`: rows, columns, sampling interval, date range, sensors + units
+- [✅] Find how fault labels are stored; list the 7 faults and severity levels
+- [✅] Deliverable: `data/dataset_notes.md`
 
 **Member B: mining**
-- [✅ ] Re-read Algorithm 1 and Eq. 13-14
-- [✅ ] First plain-Python Apriori in `src/gcarm.py` on a toy dataset (no graph constraint yet)
-- [✅ ] Deliverable: toy Apriori printing itemsets with support and rules with confidence
+- [✅] Re-read Algorithm 1 and Eq. 13-14
+- [✅] First plain-Python Apriori in `src/gcarm.py` on a toy dataset (no graph constraint yet)
+- [✅] Deliverable: toy Apriori printing itemsets with support and rules with confidence (+ lift; tests in `tests/test_gcarm.py`)
 
 **Member C: LLM**
-- [ ] Decide LLM access (API cost estimate for ~300 rules x 3 runs, or local model via Ollama)
-- [ ] Test one prompt with the paper's Fig. 10 Case 2 rule; get JSON {validity, label, reason}
-- [ ] Deliverable: working prompt + note on cost/speed in `notebooks/02_llm_test.ipynb`
+- [✅] Decide LLM access (API cost estimate for ~300 rules x 3 runs, or local model via Ollama): local `qwen3.5:4b` via Ollama
+- [✅] Test one prompt with the paper's Fig. 10 Case 2 rule; get JSON {validity, label, reason}
+- [✅] Deliverable: working prompt + note on cost/speed in `notebooks/02_llm_test.ipynb`
+- [✅] Extra: knowledge base (`knowledge_base/`), RAG retrieval (`src/rag.py`) and rule classification (`src/llm_diagnose.py`) built
 
 **Member D: improvement and coordination**
 - [ ] Send the improvement proposal to the instructor

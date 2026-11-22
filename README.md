@@ -52,7 +52,7 @@ python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
-## Setup
+
 ## Running
 
 ```bash
@@ -100,6 +100,7 @@ The knowledge base must stay general: never write dataset-specific answers into 
 | `lift` | float | `1.5` |
 
 Items are strings `"VARIABLE=value"`; the variable name is the part before `=`.
+The list is sorted by confidence (descending), then lift (descending).
 Do not change this format without agreeing with the team.
 
 ## Team
