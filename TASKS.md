@@ -14,19 +14,19 @@ Deadline: presentation and report on **7 December**.
 ## Day 1: Sun 22 Nov (setup and first look at the data)
 
 **Everyone**
-- [ ] Clone the repo, create a virtual environment, `pip install -r requirements.txt`
-- [ ] Skim the LBNL dataset paper (Granderson et al., Scientific Data, 2023), chiller plant section
+- [✅] Clone the repo, create a virtual environment, `pip install -r requirements.txt`
+- [✅ ] Skim the LBNL dataset paper (Granderson et al., Scientific Data, 2023), chiller plant section
 
 **Member A: data**
-- [ ] Download the chiller plant dataset into `data/raw/chiller_plant/` (see `data/README.md`)
-- [ ] Explore in `notebooks/01_explore.ipynb`: rows, columns, sampling interval, date range, sensors + units
-- [ ] Find how fault labels are stored; list the 7 faults and severity levels
-- [ ] Deliverable: `data/dataset_notes.md`
+- [✅ ] Download the chiller plant dataset into `data/raw/chiller_plant/` (see `data/README.md`)
+- [✅ ] Explore in `notebooks/01_explore.ipynb`: rows, columns, sampling interval, date range, sensors + units
+- [✅ ] Find how fault labels are stored; list the 7 faults and severity levels
+- [✅ ] Deliverable: `data/dataset_notes.md`
 
 **Member B: mining**
-- [ ] Re-read Algorithm 1 and Eq. 13-14
-- [ ] First plain-Python Apriori in `src/gcarm.py` on a toy dataset (no graph constraint yet)
-- [ ] Deliverable: toy Apriori printing itemsets with support and rules with confidence
+- [✅ ] Re-read Algorithm 1 and Eq. 13-14
+- [✅ ] First plain-Python Apriori in `src/gcarm.py` on a toy dataset (no graph constraint yet)
+- [✅ ] Deliverable: toy Apriori printing itemsets with support and rules with confidence
 
 **Member C: LLM**
 - [ ] Decide LLM access (API cost estimate for ~300 rules x 3 runs, or local model via Ollama)
