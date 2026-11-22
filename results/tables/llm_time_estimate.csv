@@ -1,0 +1,4 @@
+setting,calls,mean latency (s),hours
+with RAG,900,10.29,2.57
+without RAG,900,8.66,2.17
+total,1800,,4.74

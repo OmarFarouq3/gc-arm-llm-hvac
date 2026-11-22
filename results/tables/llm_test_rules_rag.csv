@@ -1,0 +1,46 @@
+rule_id,run,antecedent,consequent,support,confidence,lift,use_rag,context_sources,model,temperature,top_p,validity,label,reason,failed,error,raw,latency_s,prompt_tokens,completion_tokens,total_tokens
+0,1,OA_TEMP=high,CWL_PRI_SW_TEMPSPT=low,0.21,0.93,3.1,True,02_control_sequence.md#11; 02_control_sequence.md#13; 01_plant_design.md#5,qwen3.5:4b,0.7,0.7,True,0,"The rule is valid because it accurately reflects the designed control strategy. As outdoor temperature rises, the chilled water set-point resets downward to maintain efficiency and capacity, making 'high' OA temp correlate strongly with 'low' CWL set-points.",False,,"{
+  ""validity"": true,
+  ""label"": ""0 Invalid rules"",
+  ""reason"": ""The rule is valid because it accurately reflects the designed control strategy. As outdoor temperature rises, the chilled water set-point resets downward to maintain efficiency and capacity, making 'high' OA temp correlate strongly with 'low' CWL set-points.""
+}",13.63949530001264,427,76,503
+0,2,OA_TEMP=high,CWL_PRI_SW_TEMPSPT=low,0.21,0.93,3.1,True,02_control_sequence.md#11; 02_control_sequence.md#13; 01_plant_design.md#5,qwen3.5:4b,0.7,0.7,True,2,"The rule indicates a high outdoor temperature triggers a low chilled water set-point, which contradicts standard cooling logic where set-points rise in heat to prevent overcooling. This suggests an unintended operational behavior or control system error rather than design intent.",False,,"{
+  ""validity"": true,
+  ""label"": ""2 Operational anomaly"",
+  ""reason"": ""The rule indicates a high outdoor temperature triggers a low chilled water set-point, which contradicts standard cooling logic where set-points rise in heat to prevent overcooling. This suggests an unintended operational behavior or control system error rather than design intent.""
+}",10.297645200043917,427,76,503
+0,3,OA_TEMP=high,CWL_PRI_SW_TEMPSPT=low,0.21,0.93,3.1,True,02_control_sequence.md#11; 02_control_sequence.md#13; 01_plant_design.md#5,qwen3.5:4b,0.7,0.7,True,2,"The rule indicates high outdoor temperatures causing a low chilled water set-point, which contradicts standard cooling logic where hot weather requires higher supply temperatures to meet demand. This suggests an operational error or control malfunction.",False,,"{
+  ""validity"": true,
+  ""label"": ""2 Operational anomaly"",
+  ""reason"": ""The rule indicates high outdoor temperatures causing a low chilled water set-point, which contradicts standard cooling logic where hot weather requires higher supply temperatures to meet demand. This suggests an operational error or control malfunction.""
+}",9.220586900017224,427,68,495
+1,1,CT_FAN_SPD_1=high AND OA_TEMP_WB=low,CT_SW_TEMP_1=high,0.04,0.71,2.4,True,02_control_sequence.md#13; 01_plant_design.md#8; 03_expert_rules.md#20,qwen3.5:4b,0.7,0.7,True,3,"High fan speed combined with low wet-bulb temperature indicates the system is trying to reject heat aggressively but failing to reduce supply temperature. This signifies fouling or scaling reducing heat transfer efficiency, causing performance degradation.",False,,"{
+  ""validity"": true,
+  ""label"": ""3 Performance degradation"",
+  ""reason"": ""High fan speed combined with low wet-bulb temperature indicates the system is trying to reject heat aggressively but failing to reduce supply temperature. This signifies fouling or scaling reducing heat transfer efficiency, causing performance degradation.""
+}",10.263585399952717,398,70,468
+1,2,CT_FAN_SPD_1=high AND OA_TEMP_WB=low,CT_SW_TEMP_1=high,0.04,0.71,2.4,True,02_control_sequence.md#13; 01_plant_design.md#8; 03_expert_rules.md#20,qwen3.5:4b,0.7,0.7,True,2,"High fan speed combined with low outdoor wet-bulb typically yields optimal cooling. High supply temperature here indicates poor heat transfer despite high energy input (high fan speed), suggesting operational issues like fouled fill or scaling rather than a design flaw.",False,,"{
+  ""validity"": true,
+  ""label"": ""2 Operational anomaly"",
+  ""reason"": ""High fan speed combined with low outdoor wet-bulb typically yields optimal cooling. High supply temperature here indicates poor heat transfer despite high energy input (high fan speed), suggesting operational issues like fouled fill or scaling rather than a design flaw.""
+}",10.311510399915278,398,76,474
+1,3,CT_FAN_SPD_1=high AND OA_TEMP_WB=low,CT_SW_TEMP_1=high,0.04,0.71,2.4,True,02_control_sequence.md#13; 01_plant_design.md#8; 03_expert_rules.md#20,qwen3.5:4b,0.7,0.7,True,2,"The rule indicates high fan speed with low wet-bulb but high supply water temperature, signifying a large cooling tower approach. This suggests fouled fill or scaling reducing heat transfer efficiency under favorable outdoor conditions, an operational anomaly rather than a design flaw.",False,,"{
+  ""validity"": true,
+  ""label"": ""2 Operational anomaly"",
+  ""reason"": ""The rule indicates high fan speed with low wet-bulb but high supply water temperature, signifying a large cooling tower approach. This suggests fouled fill or scaling reducing heat transfer efficiency under favorable outdoor conditions, an operational anomaly rather than a design flaw.""
+}",10.715729799936526,398,79,477
+2,1,CWL_SEC_LOAD=low AND CWL_SEC_PM_SPD_1=high,CWL_SEC_DP=low,0.03,0.65,1.9,True,01_plant_design.md#5; 01_plant_design.md#2; 02_control_sequence.md#10,qwen3.5:4b,0.7,0.7,True,2,"High pump speed with low cooling load indicates pumps are overspeeded to maintain pressure when demand is insufficient. This causes excessive flow through the bypass decoupler, wasting energy and risking system instability.",False,,"{
+  ""validity"": true,
+  ""label"": ""2 Operational anomaly"",
+  ""reason"": ""High pump speed with low cooling load indicates pumps are overspeeded to maintain pressure when demand is insufficient. This causes excessive flow through the bypass decoupler, wasting energy and risking system instability.""
+}",9.85150029999204,418,67,485
+2,2,CWL_SEC_LOAD=low AND CWL_SEC_PM_SPD_1=high,CWL_SEC_DP=low,0.03,0.65,1.9,True,01_plant_design.md#5; 01_plant_design.md#2; 02_control_sequence.md#10,qwen3.5:4b,0.7,0.7,True,2,"High pump speed with low load indicates the control system is failing to modulate speed down to maintain pressure set-point, likely due to a sensor drift or logic fault. This causes excessive energy consumption and potential noise issues.",False,,"{
+  ""validity"": true,
+  ""label"": ""2 Operational anomaly"",
+  ""reason"": ""High pump speed with low load indicates the control system is failing to modulate speed down to maintain pressure set-point, likely due to a sensor drift or logic fault. This causes excessive energy consumption and potential noise issues.""
+}",9.620750200003386,418,71,489
+2,3,CWL_SEC_LOAD=low AND CWL_SEC_PM_SPD_1=high,CWL_SEC_DP=low,0.03,0.65,1.9,True,01_plant_design.md#5; 01_plant_design.md#2; 02_control_sequence.md#10,qwen3.5:4b,0.7,0.7,True,2,"High pump speed with low load typically indicates a control mismatch or stuck valve, causing excessive pressure drop. This is an operational issue requiring investigation rather than a design flaw or performance degradation.",False,,"{
+  ""validity"": true,
+  ""label"": ""2 Operational anomaly"",
+  ""reason"": ""High pump speed with low load typically indicates a control mismatch or stuck valve, causing excessive pressure drop. This is an operational issue requiring investigation rather than a design flaw or performance degradation.""
+}",8.672487600008026,418,64,482
