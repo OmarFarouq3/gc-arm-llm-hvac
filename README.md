@@ -52,6 +52,28 @@ python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
+## Setup
+## Running
+
+```bash
+python src/gcarm.py          # Apriori demo on toy data
+python tests/test_gcarm.py   # tests for the mining code
+```
+
+## Rule format (shared by B, C and D)
+
+`generate_rules()` returns a list of dicts. Every later step (LLM, labelling, evaluation) uses this format:
+
+| Key | Type | Example |
+|---|---|---|
+| `antecedent` | tuple of items, sorted | `("dT=low",)` |
+| `consequent` | tuple of items, sorted | `("P=low",)` |
+| `support` | float | `0.5` |
+| `confidence` | float | `0.75` |
+| `lift` | float | `1.5` |
+
+Items are strings `"VARIABLE=value"`; the variable name is the part before `=`.
+Do not change this format without agreeing with the team.
 
 ## Team
 
