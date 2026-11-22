@@ -26,8 +26,13 @@ from pathlib import Path
 
 import numpy as np
 import yaml
+from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[1]
+
+# Load .env before sentence-transformers / huggingface_hub are imported (they are
+# imported lazily in _get_model), so HF_HOME from .env sets the model cache folder.
+load_dotenv(ROOT / ".env")
 KB_DIR = ROOT / "knowledge_base"
 CACHE_DIR = ROOT / ".cache" / "rag"          # git-ignored
 GLOSSARY_FILE = "glossary.md"
