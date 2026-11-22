@@ -1,0 +1,42 @@
+# All experiment parameters. Values marked "paper" follow Deng et al. (2026).
+
+data:
+  raw_dir: data/raw
+  processed_dir: data/processed
+
+preprocess:
+  sigma: 3                 # paper: 3-sigma outlier test
+  frozen_window: 12        # consecutive identical readings treated as a frozen sensor (our choice)
+
+graph:
+  k: 2                     # paper: k-hop neighbourhood constraint
+
+arm:
+  min_support: 0.02        # paper: theta_s
+  min_confidence: 0.3      # paper: theta_c
+  max_itemset_size: 4      # our choice, to bound runtime
+
+llm:
+  model: gpt-4o-mini       # change after Member C's test
+  temperature: 0.7         # paper setting (baseline)
+  top_p: 0.7               # paper setting (baseline)
+  runs: 3                  # paper: 3 runs per model
+  max_reason_words: 60     # paper: reason <= 60 words
+
+rag:
+  embedding_model: all-MiniLM-L6-v2
+  top_k: 3
+
+labels:
+  0: invalid / normal
+  1: design anomaly
+  2: operational anomaly
+  3: performance degradation
+
+improvement:
+  confounder_vars: []      # e.g. outdoor wet-bulb temperature, filled in after data exploration
+  n_bins: 5
+  vote_runs: 5
+  vote_temperature: 0.0
+
+seed: 42
