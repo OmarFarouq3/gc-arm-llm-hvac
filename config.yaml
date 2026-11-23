@@ -6,7 +6,7 @@ data:
 
 preprocess:
   sigma: 3                 # paper: 3-sigma outlier test
-  frozen_window: 12        # consecutive identical readings treated as a frozen sensor (our choice)
+  frozen_window: 60       # consecutive identical 1-minute readings treated as a frozen sensor (our choice; weather is hourly)
 
 graph:
   k: 2                     # paper: k-hop neighbourhood constraint
