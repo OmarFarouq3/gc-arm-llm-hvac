@@ -40,3 +40,11 @@ improvement:
   vote_temperature: 0.0
 
 seed: 42
+
+discretise:
+  eta: 0.015               # paper: minimum relative entropy reduction (Eq. 7)
+  min_frac: 0.05           # our choice: each interval keeps >= 5% of samples
+  max_bins: 6              # our choice: at most 6 intervals per variable
+  n_grid: 40               # our choice: candidate split points = 40 quantiles
+  target: PLANT_COP        # our choice: efficiency band used as the entropy target
+  target_bins: 3           # low / medium / high
