@@ -1,189 +1,338 @@
 
-"""
-Association graph for the HVAC system.
+"""Graph-constrained association rule mining.
 
-Node types:
-    - Sensor and control variables
-    - Derived metrics
+Paper: Section 3.3, Algorithm 1, Equations 13-14.
 
-Edge types:
-    - Physical connections
-    - Thermodynamic dependencies
-    - Control dependencies
+A candidate itemset is kept only if every pair of its variables
+is within the permitted graph distance.
 
-Graph distances are treated as undirected for the k-hop constraint.
+Graph pruning happens DURING candidate generation, not afterwards.
+
+Owner: Member B
 """
 
-import networkx as nx
+from itertools import combinations
 
 
-def build_graph(variables):
+# Small tolerance for floating-point support comparisons.
+_EPS = 1e-12
+
+
+# ---------------------------------------------------------------------------
+# Small helpers
+# ---------------------------------------------------------------------------
+
+def _variable(item):
+    """Extract the variable name from an item.
+
+    Example:
+        "CHL_DT_1=low" -> "CHL_DT_1"
     """
-    Build the HVAC association graph.
+    return item.split("=", 1)[0]
 
-    Parameters
-    ----------
-    variables : dict
-        Dictionary containing:
-        - sensor_variables
-        - derived_metrics
-        - physical_edges
-        - thermodynamic_edges
-        - control_edges
 
-    Returns
-    -------
-    nx.MultiGraph
-        Undirected graph preserving different edge types.
-    """
+def _has_repeated_variable(itemset):
+    """Check whether an itemset contains multiple values of one variable."""
+    variables = [_variable(item) for item in itemset]
+    return len(variables) != len(set(variables))
 
-    # 1. Validate input
-    required_keys = {
-        "sensor_variables",
-        "derived_metrics",
-        "physical_edges",
-        "thermodynamic_edges",
-        "control_edges",
+
+def _count_support(candidates, transactions):
+    """Calculate the support of each candidate itemset."""
+    n = len(transactions)
+
+    if n == 0:
+        return {}
+
+    counts = {candidate: 0 for candidate in candidates}
+
+    for transaction in transactions:
+        for candidate in candidates:
+            if candidate <= transaction:
+                counts[candidate] += 1
+
+    return {
+        candidate: count / n
+        for candidate, count in counts.items()
     }
 
-    if not isinstance(variables, dict):
-        raise TypeError("variables must be a dictionary")
 
-    missing_keys = required_keys - set(variables.keys())
+# ---------------------------------------------------------------------------
+# Candidate generation
+# ---------------------------------------------------------------------------
 
-    if missing_keys:
-        raise ValueError(f"Missing input keys: {missing_keys}")
+def _generate_candidates(frequent_prev, k, allowed_pairs=None):
+    """Generate size-k candidates using Apriori and graph constraints.
 
-    # 2. Identify node groups
-    sensor_nodes = set(variables["sensor_variables"])
-    metric_nodes = set(variables["derived_metrics"].keys())
+    Steps:
+        1. JOIN frequent (k-1)-itemsets.
+        2. Reject itemsets containing repeated variables.
+        3. Apply graph-based k-hop pruning when allowed_pairs is provided.
+        4. Apply the standard Apriori subset pruning.
 
-    # A node cannot belong to both groups
-    overlap = sensor_nodes & metric_nodes
+    Parameters
+    ----------
+    frequent_prev : iterable
+        Frequent itemsets of size k-1.
+    k : int
+        Required candidate itemset size.
+    allowed_pairs : set of frozensets or None
+        Allowed unordered pairs of variable names.
+        If None, graph pruning is disabled.
 
-    if overlap:
-        raise ValueError(f"Nodes classified twice: {overlap}")
+    Returns
+    -------
+    set
+        Generated candidate itemsets.
+    """
 
-    # 3. Create an undirected MultiGraph
-    G = nx.MultiGraph()
+    prev = list(frequent_prev)
+    prev_set = set(prev)
+    candidates = set()
 
-    # 4. Add sensor and control variables
-    G.add_nodes_from(
-        (node, {"node_type": "sensor_or_control"})
-        for node in sensor_nodes
-    )
+    for i in range(len(prev)):
+        for j in range(i + 1, len(prev)):
 
-    # 5. Add derived metric nodes
-    G.add_nodes_from(
-        (node, {"node_type": "derived_metric"})
-        for node in metric_nodes
-    )
+            union = prev[i] | prev[j]
 
-    # 6. Prepare edge groups
-    edge_groups = [
-        ("physical", variables["physical_edges"]),
-        ("thermodynamic", variables["thermodynamic_edges"]),
-        ("control", variables["control_edges"]),
-    ]
+            # Step 1: Join only itemsets of exactly size k.
+            if len(union) != k or union in candidates:
+                continue
 
-    # 7. Add edges with their relationship types
-    for edge_type, edges in edge_groups:
+            # Step 2: Reject multiple values of the same variable.
+            if _has_repeated_variable(union):
+                continue
 
-        for edge in edges:
+            # Step 3: Apply graph-based pruning.
+            if allowed_pairs is not None:
 
-            if not isinstance(edge, (tuple, list)) or len(edge) != 2:
-                raise ValueError(f"Invalid edge: {edge}")
-
-            source, target = edge
-
-            if source not in G or target not in G:
-                raise ValueError(
-                    f"Unknown node in {edge_type} edge: {edge}"
+                variables = sorted(
+                    _variable(item) for item in union
                 )
 
-            G.add_edge(
-                source,
-                target,
-                edge_type=edge_type
-            )
+                # Every pair of variables must be within the
+                # permitted graph distance.
+                if any(
+                    frozenset((var1, var2)) not in allowed_pairs
+                    for var1, var2 in combinations(variables, 2)
+                ):
+                    continue
 
-    return G
+            # Step 4: Standard Apriori pruning.
+            # Every (k-1)-subset must already be frequent.
+            if all(
+                frozenset(subset) in prev_set
+                for subset in combinations(union, k - 1)
+            ):
+                candidates.add(union)
+
+    return candidates
 
 
-def k_hop_neighbourhood(G, node, k):
-    """
-    Return all nodes within k graph hops of a given node.
+# ---------------------------------------------------------------------------
+# Apriori algorithm
+# ---------------------------------------------------------------------------
 
-    The graph is treated as undirected when calculating distances.
+def apriori(transactions, min_support, max_size=4, allowed_pairs=None):
+    """Run the Apriori algorithm with optional graph-based pruning.
 
     Parameters
     ----------
-    G : NetworkX graph
-    node : str
-        Starting node.
-    k : int
-        Maximum number of hops.
+    transactions : list
+        Transactions containing items such as "CHL_POW_1=high".
+    min_support : float
+        Minimum support threshold.
+    max_size : int
+        Maximum candidate itemset size.
+    allowed_pairs : set of frozensets or None
+        Allowed variable pairs obtained from the HVAC association graph.
+        If None, ordinary Apriori is performed.
 
     Returns
     -------
-    set
-        Neighbouring nodes within k hops, excluding the starting node.
+    dict
+        Frequent itemsets and their support values.
     """
 
-    if isinstance(k, bool) or not isinstance(k, int) or k < 0:
-        raise ValueError("k must be a non-negative integer")
+    transactions = [frozenset(t) for t in transactions]
 
-    if node not in G:
-        raise nx.NodeNotFound(f"Node '{node}' is not in the graph")
+    if not transactions:
+        return {}
 
-    # Treat directed graphs as undirected for distance calculations
-    graph = G.to_undirected() if G.is_directed() else G
+    result = {}
 
-    # Find shortest-path distances from the starting node
-    distances = nx.single_source_shortest_path_length(
-        graph,
-        source=node,
-        cutoff=k
+    # Level 1: Generate all individual items.
+    items = {
+        frozenset([item])
+        for transaction in transactions
+        for item in transaction
+    }
+
+    support = _count_support(items, transactions)
+
+    frequent = {
+        candidate: value
+        for candidate, value in support.items()
+        if value >= min_support - _EPS
+    }
+
+    result.update(frequent)
+
+    # Levels 2, 3, ...: Generate larger itemsets.
+    k = 2
+
+    while frequent and k <= max_size:
+
+        candidates = _generate_candidates(
+            frequent.keys(),
+            k,
+            allowed_pairs
+        )
+
+        support = _count_support(candidates, transactions)
+
+        frequent = {
+            candidate: value
+            for candidate, value in support.items()
+            if value >= min_support - _EPS
+        }
+
+        result.update(frequent)
+
+        k += 1
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Association rule generation
+# ---------------------------------------------------------------------------
+
+def generate_rules(itemsets, min_confidence):
+    """Generate association rules from frequent itemsets.
+
+    For each frequent itemset X:
+
+        support    = support(X)
+        confidence = support(X) / support(antecedent)
+        lift       = confidence / support(consequent)
+
+    Returns
+    -------
+    list
+        Association rules sorted by descending confidence and lift.
+    """
+
+    rules = []
+
+    for itemset, support_value in itemsets.items():
+
+        if len(itemset) < 2:
+            continue
+
+        # Generate all non-empty proper subsets as antecedents.
+        for size in range(1, len(itemset)):
+
+            for antecedent_items in combinations(
+                sorted(itemset), size
+            ):
+
+                antecedent = frozenset(antecedent_items)
+                consequent = itemset - antecedent
+
+                confidence = (
+                    support_value / itemsets[antecedent]
+                )
+
+                if confidence < min_confidence - _EPS:
+                    continue
+
+                lift = confidence / itemsets[consequent]
+
+                rules.append({
+                    "antecedent": tuple(sorted(antecedent)),
+                    "consequent": tuple(sorted(consequent)),
+                    "support": float(support_value),
+                    "confidence": float(confidence),
+                    "lift": float(lift),
+                })
+
+    # Deterministic sorting.
+    rules.sort(
+        key=lambda rule: (
+            -rule["confidence"],
+            -rule["lift"],
+            rule["antecedent"],
+            rule["consequent"]
+        )
     )
 
-    # Exclude the starting node
-    return set(distances.keys()) - {node}
+    return rules
 
 
-def allowed_pairs(G, k):
-    """
-    Return all unique unordered node pairs whose shortest-path
-    distance is at most k.
+# ---------------------------------------------------------------------------
+# Unconstrained baseline
+# ---------------------------------------------------------------------------
 
-    Parameters
-    ----------
-    G : NetworkX graph
-    k : int
-        Maximum allowed graph distance.
+def unconstrained_baseline(transactions, min_support, min_confidence):
+    """Placeholder for the project's unconstrained baseline implementation."""
+    raise NotImplementedError
 
-    Returns
-    -------
-    set
-        Set of frozensets containing allowed node pairs.
-    """
 
-    if isinstance(k, bool) or not isinstance(k, int) or k < 0:
-        raise ValueError("k must be a non-negative integer")
+# ---------------------------------------------------------------------------
+# Demo
+# Run using: python src/gcarm.py
+# ---------------------------------------------------------------------------
 
-    # Treat the graph as undirected
-    graph = G.to_undirected() if G.is_directed() else G
+if __name__ == "__main__":
 
-    pairs = set()
+    transactions = [
+        {"dT=low", "P=low", "OA=cool"},
+        {"dT=low", "P=low", "OA=cool"},
+        {"dT=normal", "P=high", "OA=hot"},
+        {"dT=low", "P=low", "OA=cool"},
+        {"dT=normal", "P=high", "OA=hot"},
+        {"dT=low", "P=high", "OA=hot"},
+    ]
 
-    # Calculate shortest-path distances from every node
-    for source, distances in nx.all_pairs_shortest_path_length(
-        graph,
-        cutoff=k
+    min_support = 0.3
+    min_confidence = 0.6
+
+    itemsets = apriori(
+        transactions,
+        min_support
+    )
+
+    print(
+        f"Frequent itemsets "
+        f"(min_support={min_support}): {len(itemsets)}"
+    )
+
+    for itemset, support_value in sorted(
+        itemsets.items(),
+        key=lambda x: (
+            len(x[0]),
+            -x[1],
+            sorted(x[0])
+        )
     ):
+        print(
+            f"{len(itemset):>4}  "
+            f"{support_value:>7.3f}  "
+            f"{{{', '.join(sorted(itemset))}}}"
+        )
 
-        for target in distances:
+    rules = generate_rules(itemsets, min_confidence)
 
-            if source != target:
-                pairs.add(frozenset((source, target)))
+    print(
+        f"\nRules (min_confidence={min_confidence}): "
+        f"{len(rules)}"
+    )
 
-    return pairs
+    for rule in rules:
+        print(
+            f"{rule['antecedent']} -> {rule['consequent']} "
+            f"| Support: {rule['support']:.3f} "
+            f"| Confidence: {rule['confidence']:.3f} "
+            f"| Lift: {rule['lift']:.3f}"
+        )
