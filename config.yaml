@@ -5,8 +5,20 @@ data:
   processed_dir: data/processed
 
 preprocess:
-  sigma: 3                 # paper: 3-sigma outlier test
-  frozen_window: 60       # consecutive identical 1-minute readings treated as a frozen sensor (our choice; weather is hourly)
+  # Every file (fault-free and all 23 fault files) gets exactly the same steps.
+  frozen_removal: true     # drop rows with a stuck sensor (paper step 1)
+  frozen_window: 60        # our choice: minutes unchanged while running (1-minute data; weather is hourly)
+  frozen_exclude: [OA_TEMP, OA_TEMP_WB]   # hourly weather inputs are flat for 60 min by design
+  outlier_removal: false   # our choice: skip 3-sigma. Simulated data has no sensor errors, and on
+                           # fault files the test removes the fault signal itself.
+  sigma: 3                 # paper: 3-sigma outlier test (used only if outlier_removal is true)
+  sigma_by_month: true     # 3-sigma limits per calendar month (only if outlier_removal is true)
+  max_flag_frac: 0.20      # skip a check for a column it would flag above this share (constant by design)
+  resample: 15min          # 15-minute means before mining
+  min_coverage: 0.67       # a 15-minute window needs >= 67% valid 1-minute rows
+  chiller_on_only: true    # keep only windows where at least one chiller is on
+  min_cool_kw: 50          # COP computed only when cooling >= 50 kW (near-zero load gives noise)
+  delta_t_scale: 1.0       # set to 1.8 only if the temperatures turn out to be degC
 
 graph:
   k: 2                     # paper: k-hop neighbourhood constraint
