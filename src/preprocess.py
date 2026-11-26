@@ -38,7 +38,7 @@ import pandas as pd
 DEFAULTS = {
     "n_chillers": 3,
     "n_towers": 3,
-    "frozen_removal": True,
+    "frozen_removal": False,
     "frozen_window": 60,          # minutes unchanged while running -> stuck
     "frozen_tol": 1e-6,
     "frozen_exclude": ["OA_TEMP", "OA_TEMP_WB"],

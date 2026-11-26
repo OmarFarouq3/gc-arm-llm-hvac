@@ -6,7 +6,7 @@ data:
 
 preprocess:
   # Every file (fault-free and all 23 fault files) gets exactly the same steps.
-  frozen_removal: true     # drop rows with a stuck sensor (paper step 1)
+  frozen_removal: false     # drop rows with a stuck sensor (paper step 1)
   frozen_window: 60        # our choice: minutes unchanged while running (1-minute data; weather is hourly)
   frozen_exclude: [OA_TEMP, OA_TEMP_WB]   # hourly weather inputs are flat for 60 min by design
   outlier_removal: false   # our choice: skip 3-sigma. Simulated data has no sensor errors, and on
