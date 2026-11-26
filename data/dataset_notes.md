@@ -63,6 +63,8 @@ our improvement targets.
   no sensor errors; on fault files it would delete the fault itself), 15-minute means, and only
   windows where at least one chiller is on. Output: `data/processed/<file>.parquet`.
 
+  The CSV columns OA_TEMP and OA_TEMP_WB are swapped (wet-bulb > dry-bulb in 99% of rows; the tower set-point equals OA_TEMP + 8°F). load_csv() swaps them back. The chilled-water reset runs 44–54°F, not the documented 42–52°F.
+
 ## Plant operation (fault-free year)
 
 - Chiller 1 is on almost all year; at winter load it delivers very little cooling, so COP is only

@@ -38,7 +38,7 @@ import pandas as pd
 DEFAULTS = {
     "n_chillers": 3,
     "n_towers": 3,
-    "frozen_removal": True,
+    "frozen_removal": False,
     "frozen_window": 60,          # minutes unchanged while running -> stuck
     "frozen_tol": 1e-6,
     "frozen_exclude": ["OA_TEMP", "OA_TEMP_WB"],
@@ -127,6 +127,14 @@ def load_csv(path: Path) -> pd.DataFrame:
     num = df.select_dtypes("number").columns
     df[num] = df[num].astype("float32")
     df[num] = df[num].mask(df[num].abs() < DEFAULTS["tiny"], 0.0)
+
+    # The LBNL CSVs have the two weather columns swapped: OA_TEMP holds wet-bulb
+    # and OA_TEMP_WB holds dry-bulb (WB > DB in 99% of rows; the tower set-point
+    # equals OA_TEMP + 8 degF). Wet-bulb can never exceed dry-bulb, so if the
+    # "wet-bulb" column is the higher one in most rows, swap the names.
+    if {"OA_TEMP", "OA_TEMP_WB"} <= set(df.columns):
+        if (df["OA_TEMP_WB"] > df["OA_TEMP"]).mean() > 0.5:
+            df = df.rename(columns={"OA_TEMP": "OA_TEMP_WB", "OA_TEMP_WB": "OA_TEMP"})
     return df
 
 
