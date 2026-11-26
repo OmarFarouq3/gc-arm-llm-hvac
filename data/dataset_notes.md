@@ -58,7 +58,20 @@ our improvement targets.
 - Sensor-bias faults: the **logged value is the faulty value**. Note the bias is in degC
   (1 degC = 1.8 degF in the logged data).
 - Very small values (e.g. 3.5e-18) are simulation noise and should be treated as 0.
-- Plan: resample to 15-minute (or hourly) means before mining.
+- Preprocessing (src/preprocess.py, settings in config.yaml `preprocess:`): every file gets the same
+  steps: frozen-sensor removal (60 min, weather excluded), no 3-sigma removal (simulated data has
+  no sensor errors; on fault files it would delete the fault itself), 15-minute means, and only
+  windows where at least one chiller is on. Output: `data/processed/<file>.parquet`.
+
+## Plant operation (fault-free year)
+
+- Chiller 1 is on almost all year; at winter load it delivers very little cooling, so COP is only
+  computed when cooling >= 50 kW (`min_cool_kw`).
+- Chiller 2 runs in summer only (about 770 h in the fault-free year).
+- **Chiller 3 almost never runs** (about 38 h, on the hottest days), so after cleaning it has
+  practically no data: its variables give no useful rules and should be left out of the graph.
+- Cooling tower approach is only meaningful when the tower has flow and its fan is on;
+  CT_APPROACH_i is blank otherwise (idle or bypass periods gave negative values).
 
 ## Fault scenarios
 
