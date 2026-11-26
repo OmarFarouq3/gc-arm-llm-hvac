@@ -39,6 +39,12 @@ rag:
   embedding_model: all-MiniLM-L6-v2
   top_k: 5
 
+labelling:                 # ground-truth scheme (report/labelling_scheme.md)
+  new_support: 0.02        # paper theta_s: below this support in the fault-free file a rule counts as new
+  stable_delta: 0.10       # our choice: |conf_F - conf_0| below this -> normal (label 0)
+  changed_delta: 0.20      # our choice: at or above this (or new) + affected variable -> anomaly
+  hops: 2                  # affected set = fault roots + nodes within 2 hops (same k as mining)
+
 labels:
   0: invalid / normal
   1: design anomaly
