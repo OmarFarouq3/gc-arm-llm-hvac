@@ -50,12 +50,13 @@ DEFAULTS = {
 # Design breakpoints (units as in the LBNL data: degF, kW, 0-1).
 # Patterns are regular expressions matched against column names.
 DESIGN_BREAKPOINTS = {
-    r"^(CHL_SW_TEMP_\d|CWL_PRI_SW_TEMP|CWL_SEC_SW_TEMP)$": [42.0, 52.0],  # set-point reset range
+    r"^(CHL_SW_TEMP_\d|CWL_PRI_SW_TEMP|CWL_SEC_SW_TEMP)$": [44.0, 54.0],  # measured reset range (docs say 42-52)
     r"^OA_TEMP$": [60.0, 80.0],                     # outdoor range that drives the reset
     r"^(CT_SW_TEMP_\d|CDWL_SW_TEMP)$": [60.0],      # minimum tower leaving water temperature
     r"^CT_APPROACH_\d$": [8.0],                     # design approach (wet-bulb + 8 degF)
     r"^CHL_DT_\d$": [3.6],                          # paper's "delta T < 2 degC" rule (= 3.6 degF)
-    r"^CHL_COP_\d$": [4.0, 6.0],                    # paper's normal COP range
+    # No design cuts for CHL_COP_i: the paper's 4-6 range does not fit this simulated plant
+    # (chiller COP is about 2.3-2.5 all year), so its intervals come from entropy refinement.
 }
 
 # Columns that are on/off (0/1) rather than continuous.
