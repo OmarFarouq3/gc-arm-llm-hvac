@@ -5,20 +5,8 @@ data:
   processed_dir: data/processed
 
 preprocess:
-  # Every file (fault-free and all 23 fault files) gets exactly the same steps.
-  frozen_removal: false     # drop rows with a stuck sensor (paper step 1)
-  frozen_window: 60        # our choice: minutes unchanged while running (1-minute data; weather is hourly)
-  frozen_exclude: [OA_TEMP, OA_TEMP_WB]   # hourly weather inputs are flat for 60 min by design
-  outlier_removal: false   # our choice: skip 3-sigma. Simulated data has no sensor errors, and on
-                           # fault files the test removes the fault signal itself.
-  sigma: 3                 # paper: 3-sigma outlier test (used only if outlier_removal is true)
-  sigma_by_month: true     # 3-sigma limits per calendar month (only if outlier_removal is true)
-  max_flag_frac: 0.20      # skip a check for a column it would flag above this share (constant by design)
-  resample: 15min          # 15-minute means before mining
-  min_coverage: 0.67       # a 15-minute window needs >= 67% valid 1-minute rows
-  chiller_on_only: true    # keep only windows where at least one chiller is on
-  min_cool_kw: 50          # COP computed only when cooling >= 50 kW (near-zero load gives noise)
-  delta_t_scale: 1.0       # set to 1.8 only if the temperatures turn out to be degC
+  sigma: 3                 # paper: 3-sigma outlier test
+  frozen_window: 12        # consecutive identical readings treated as a frozen sensor (our choice)
 
 graph:
   k: 2                     # paper: k-hop neighbourhood constraint
@@ -38,12 +26,6 @@ llm:
 rag:
   embedding_model: all-MiniLM-L6-v2
   top_k: 5
-
-labelling:                 # ground-truth scheme (report/labelling_scheme.md)
-  new_support: 0.02        # paper theta_s: below this support in the fault-free file a rule counts as new
-  stable_delta: 0.10       # our choice: |conf_F - conf_0| below this -> normal (label 0)
-  changed_delta: 0.20      # our choice: at or above this (or new) + affected variable -> anomaly
-  hops: 2                  # affected set = fault roots + nodes within 2 hops (same k as mining)
 
 labels:
   0: invalid / normal
@@ -66,3 +48,11 @@ discretise:
   n_grid: 40               # our choice: candidate split points = 40 quantiles
   target: PLANT_COP        # our choice: efficiency band used as the entropy target
   target_bins: 3           # low / medium / high
+
+baseline:                  # threshold baseline for the paper's Table 3 (src/baseline_threshold.py, Member C)
+  min_consecutive: 1       # our choice: consecutive rows a limit must be broken before flagging (1 = no persistence)
+  limits:                  # units as in the LBNL data (degF); a running unit is flagged when it breaks a limit
+    - {name: low_cop,       pattern: '^CHL_COP_\d$',     low: 2.0}    # this plant: normal chiller COP ~2.5 (not textbook 4-6)
+    - {name: high_approach, pattern: '^CT_APPROACH_\d$', high: 11.0}  # this plant: normal approach ~8 degF, alarm at +3 degF
+    - {name: low_delta_t,   pattern: '^CHL_DT_\d$',      low: 3.6}    # paper Case 2: delta T < 2 degC = 3.6 degF
+    - {name: setpoint_dev,  pattern: '^CHL_SPT_DEV_\d$', abs: 2.0}    # knowledge base: supply within ~1 degF of set-point
