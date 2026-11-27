@@ -58,6 +58,9 @@ pip install -r requirements.txt
 ```bash
 python src/gcarm.py          # Apriori demo on toy data
 python tests/test_gcarm.py   # tests for the mining code
+python tests/test_baseline_threshold.py   # threshold baseline (paper Table 3)
+python tests/test_improvement.py          # confounder check + majority vote
+python -m src.baseline_threshold          # baseline on data/processed/*.parquet -> results/tables/baseline_threshold_rows.csv
 ```
 
 ## LLM / RAG
