@@ -1,0 +1,509 @@
+From 77d691b067bcb745dac4900e21c2b6d51f722c06 Mon Sep 17 00:00:00 2001
+From: Abdalla Alnaqbi <u24200508@gmail.com>
+Date: Fri, 27 Nov 2026 15:58:51 +0000
+Subject: [PATCH] Add threshold baseline (paper Table 3) with plant-based
+ limits
+
+- src/baseline_threshold.py: COP, tower approach, chilled-water delta T and
+  supply-vs-set-point limits at row and rule level; check_limits() compares
+  each limit with the fault-free file
+- config.yaml: baseline section (labelling section from main kept)
+- high_approach 11 -> 9.8 degF so it matches the fitted CT_APPROACH_1
+  breakpoint; with 11 no mined approach interval could raise an alarm
+- tests/test_baseline_threshold.py, incl. a check against results/breakpoints.json
+- README: test and run commands
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_015roHvMyhpDXcHTbmBXybJv
+---
+ README.md                        |   3 +
+ config.yaml                      |  10 +-
+ src/baseline_threshold.py        | 311 +++++++++++++++++++++++++++++++
+ tests/test_baseline_threshold.py | 124 ++++++++++++
+ 4 files changed, 447 insertions(+), 1 deletion(-)
+ create mode 100644 src/baseline_threshold.py
+ create mode 100644 tests/test_baseline_threshold.py
+
+diff --git a/README.md b/README.md
+index d8c9bdf..0a6ab09 100644
+--- a/README.md
++++ b/README.md
+@@ -58,6 +58,9 @@ pip install -r requirements.txt
+ ```bash
+ python src/gcarm.py          # Apriori demo on toy data
+ python tests/test_gcarm.py   # tests for the mining code
++python tests/test_baseline_threshold.py   # threshold baseline (paper Table 3)
++python tests/test_improvement.py          # confounder check + majority vote
++python -m src.baseline_threshold          # baseline on data/processed/*.parquet -> results/tables/baseline_threshold_rows.csv
+ ```
+ 
+ ## LLM / RAG
+diff --git a/config.yaml b/config.yaml
+index 2261b4c..e9950fb 100644
+--- a/config.yaml
++++ b/config.yaml
+@@ -59,4 +59,12 @@ discretise:
+   max_bins: 6              # our choice: at most 6 intervals per variable
+   n_grid: 40               # our choice: candidate split points = 40 quantiles
+   target: PLANT_COP        # our choice: efficiency band used as the entropy target
+-  target_bins: 3           # low / medium / high
+\ No newline at end of file
++  target_bins: 3           # low / medium / high
++
++baseline:                  # threshold baseline for the paper's Table 3 (src/baseline_threshold.py, Member C)
++  min_consecutive: 1       # our choice: consecutive rows a limit must be broken before flagging (1 = no persistence)
++  limits:                  # units as in the LBNL data (degF); a running unit is flagged when it breaks a limit
++    - {name: low_cop,       pattern: '^CHL_COP_\d$',     low: 2.0}    # this plant: normal chiller COP ~2.5 (not textbook 4-6)
++    - {name: high_approach, pattern: '^CT_APPROACH_\d$', high: 9.8}   # this plant: matches the fitted CT_APPROACH_1 breakpoint, so rule items '>=9.8' alarm (11 never matched a mined interval)
++    - {name: low_delta_t,   pattern: '^CHL_DT_\d$',      low: 3.6}    # paper Case 2: delta T < 2 degC = 3.6 degF
++    - {name: setpoint_dev,  pattern: '^CHL_SPT_DEV_\d$', abs: 2.0}    # knowledge base: supply within ~1 degF of set-point
+diff --git a/src/baseline_threshold.py b/src/baseline_threshold.py
+new file mode 100644
+index 0000000..bea6405
+--- /dev/null
++++ b/src/baseline_threshold.py
+@@ -0,0 +1,311 @@
++"""Threshold baseline: the "conventional engineering method" of the paper's Table 3.
++
++Paper (Deng et al., 2026, Section 4.4): a threshold method of the kind used in BMS
++"classifies a rule as anomalous if its antecedent or consequent falls into predefined
++extreme intervals (e.g. protection limits or alarm thresholds from design manuals)".
++It only says normal / anomalous, so it is not diagnostic (no category).
++
++The COP and approach limits follow this plant's measured operating ranges, not textbook
++values (textbook COP 4-6 would flag almost every row of a plant that normally runs at ~2.5).
++Four fixed limits (values in config.yaml -> baseline.limits, units as in the LBNL data):
++    CHL_COP_i      chiller COP               low  if < 2.0       (this plant: normal COP ~2.5)
++    CT_APPROACH_i  tower approach (degF)     high if > 9.8       (this plant: approach >= 9.8 in 7% of healthy tower-1 windows, 31% with 65% fouling)
++    CHL_DT_i       chilled-water delta T     low  if < 3.6       (paper Case 2: delta T < 2 degC)
++    CHL_SPT_DEV_i  supply temp - set-point   |dev| > 2.0         (knowledge base: normal within ~1 degF)
++
++The same limits are used at two levels:
++1. Rows  (`flag_rows`, `evaluate_rows`): flag every time step where a running unit breaks
++   a limit. Fault-free file -> false-alarm rate; each fault file -> detection rate.
++   This is how a BMS alarm would behave.
++2. Rules (`classify_rule`, `classify_rules`): a mined rule is anomalous (1) if any of its
++   items is an interval that lies entirely inside an alarm region, e.g. "CHL_COP_1=<4" or
++   "CT_APPROACH_1=[10.5,14)". This is the paper's Table 3 setting and is scored against the
++   same ground-truth labels as the LLM (`detection_metrics`).
++
++Run: python -m src.baseline_threshold   (needs data/processed/*.parquet or .pkl)
++
++Owner: Member C
++"""
++from __future__ import annotations
++
++import math
++import re
++from pathlib import Path
++
++import numpy as np
++import pandas as pd
++
++ROOT = Path(__file__).resolve().parents[1]
++
++DEFAULTS = {
++    "min_consecutive": 1,   # our choice: rows in a row a limit must be broken before a row is flagged
++    "limits": [
++        {"name": "low_cop",       "pattern": r"^CHL_COP_\d$",     "low": 2.0},
++        {"name": "high_approach", "pattern": r"^CT_APPROACH_\d$", "high": 9.8},
++        {"name": "low_delta_t",   "pattern": r"^CHL_DT_\d$",      "low": 3.6},
++        {"name": "setpoint_dev",  "pattern": r"^CHL_SPT_DEV_\d$", "abs": 2.0},
++    ],
++}
++
++# Fault files used for evaluation (report/labelling_scheme.md, section 3).
++FAULT_FILES = [
++    "ChillerPlant_chiller_bias_+2",
++    "ChillerPlant_coolingtower_bias_+2",
++    "ChillerPlant_secondary_chilled_water_pressure_bias_+20",
++    "ChillerPlant_bypass_leakage_75",
++    "ChillerPlant_bypass_stuck_75",
++    "ChillerPlant_coolingtower_PI",
++    "ChillerPlant_coolingtower_fouling_065",
++    "ChillerPlant_chiller_fouling_065",
++]
++
++TONS_TO_KW = 3.517
++
++
++def load_settings(config_path=ROOT / "config.yaml") -> dict:
++    s = {k: (list(v) if isinstance(v, list) else v) for k, v in DEFAULTS.items()}
++    p = Path(config_path)
++    if p.exists():
++        import yaml
++        cfg = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
++        s.update(cfg.get("baseline") or {})
++    return s
++
++
++# ---------------------------------------------------------------------------
++# Derived metrics (only the ones the baseline needs; skipped if already present)
++# ---------------------------------------------------------------------------
++
++def add_baseline_metrics(df: pd.DataFrame) -> pd.DataFrame:
++    """Add CHL_DT_i, CHL_COP_i, CT_APPROACH_i and CHL_SPT_DEV_i (i = 1..3) where possible."""
++    df = df.copy()
++    for i in (1, 2, 3):
++        sw, rw, flow, pw = (f"CHL_SW_TEMP_{i}", f"CHL_RW_TEMP_{i}", f"CHL_CW_FLOW_{i}", f"CHL_POW_{i}")
++        if f"CHL_DT_{i}" not in df and {sw, rw} <= set(df.columns):
++            df[f"CHL_DT_{i}"] = df[rw] - df[sw]
++        if f"CHL_COP_{i}" not in df and {sw, rw, flow, pw} <= set(df.columns):
++            cooling_kw = df[flow] * (df[rw] - df[sw]) / 24.0 * TONS_TO_KW
++            df[f"CHL_COP_{i}"] = cooling_kw / df[pw].where(df[pw] > 1.0)   # avoid dividing by ~0 kW
++        if f"CT_APPROACH_{i}" not in df and {f"CT_SW_TEMP_{i}", "OA_TEMP_WB"} <= set(df.columns):
++            df[f"CT_APPROACH_{i}"] = df[f"CT_SW_TEMP_{i}"] - df["OA_TEMP_WB"]
++        if f"CHL_SPT_DEV_{i}" not in df and {sw, "CWL_PRI_SW_TEMPSPT"} <= set(df.columns):
++            df[f"CHL_SPT_DEV_{i}"] = df[sw] - df["CWL_PRI_SW_TEMPSPT"]
++    return df
++
++
++def _running(df: pd.DataFrame, column: str) -> pd.Series:
++    """True where the unit behind `column` is on (CHL_* -> CHL_STA_i, CT_* -> CT_STA_i)."""
++    m = re.search(r"_(\d)$", column)
++    if m:
++        prefix = "CT" if column.startswith("CT_") else "CHL"
++        sta = f"{prefix}_STA_{m.group(1)}"
++        if sta in df:
++            return df[sta] > 0.5
++    return pd.Series(True, index=df.index)
++
++
++def _breaks(x: pd.Series, limit: dict) -> pd.Series:
++    out = pd.Series(False, index=x.index)
++    if "low" in limit:
++        out |= x < limit["low"]
++    if "high" in limit:
++        out |= x > limit["high"]
++    if "abs" in limit:
++        out |= x.abs() > limit["abs"]
++    return out & x.notna()
++
++
++def _persistent(flag: pd.Series, n: int) -> pd.Series:
++    """Keep only runs of at least n consecutive True values."""
++    if n <= 1:
++        return flag
++    run_id = (flag != flag.shift()).cumsum()
++    run_len = flag.groupby(run_id).transform("size")
++    return flag & (run_len >= n)
++
++
++def check_limits(fault_free: pd.DataFrame, s: dict | None = None, q: float = 0.01) -> pd.DataFrame:
++    """Compare each limit with the fault-free file's own range (running units only).
++
++    Gives the median, the q / 1-q quantiles and the share of healthy rows beyond the limit,
++    so the fixed limits can be checked against the plant's real data before Table 3.
++    """
++    s = s or load_settings()
++    df = add_baseline_metrics(fault_free)
++    rows = []
++    for limit in s["limits"]:
++        cols = [c for c in df.columns if re.match(limit["pattern"], c)]
++        vals = pd.concat([df[c][_running(df, c)] for c in cols]) if cols else pd.Series(dtype=float)
++        vals = vals.dropna()
++        if vals.empty:
++            rows.append({"limit": limit["name"], "n": 0})
++            continue
++        broken = _breaks(vals, limit)
++        rows.append({"limit": limit["name"], "n": len(vals), "median": round(vals.median(), 2),
++                     f"q{q:g}": round(vals.quantile(q), 2), f"q{1 - q:g}": round(vals.quantile(1 - q), 2),
++                     "threshold": {k: limit[k] for k in ("low", "high", "abs") if k in limit},
++                     "healthy beyond (%)": round(100 * broken.mean(), 2)})
++    return pd.DataFrame(rows)
++
++
++# ---------------------------------------------------------------------------
++# 1. Row level
++# ---------------------------------------------------------------------------
++
++def flag_rows(df: pd.DataFrame, s: dict | None = None) -> pd.DataFrame:
++    """One boolean column per limit (any unit) plus `any`. Only running units are checked."""
++    s = s or load_settings()
++    df = add_baseline_metrics(df)
++    out = pd.DataFrame(index=df.index)
++    for limit in s["limits"]:
++        cols = [c for c in df.columns if re.match(limit["pattern"], c)]
++        flag = pd.Series(False, index=df.index)
++        for c in cols:
++            flag |= _breaks(df[c], limit) & _running(df, c)
++        out[limit["name"]] = _persistent(flag, int(s.get("min_consecutive", 1)))
++    out["any"] = out.any(axis=1)
++    return out
++
++
++def evaluate_rows(fault_free: pd.DataFrame, faults: dict[str, pd.DataFrame], s: dict | None = None) -> pd.DataFrame:
++    """Flag rate per file and per limit.
++
++    Every fault in the LBNL data is active for the whole year, so in a fault file every
++    row is "faulty": its flag rate is the detection rate. In the fault-free file every
++    flag is a false alarm.
++    """
++    s = s or load_settings()
++    rows = []
++    for name, df in {"fault-free": fault_free, **faults}.items():
++        f = flag_rows(df, s)
++        r = {"file": name, "rows": len(f)}
++        r.update({f"{c} (%)": round(100 * f[c].mean(), 2) for c in f.columns})
++        rows.append(r)
++    table = pd.DataFrame(rows).rename(columns={"any (%)": "flagged (%)"})
++    ff_rate = table.loc[0, "flagged (%)"]
++    table["minus fault-free (pp)"] = (table["flagged (%)"] - ff_rate).round(2)
++    return table
++
++
++# ---------------------------------------------------------------------------
++# 2. Rule level (paper Table 3)
++# ---------------------------------------------------------------------------
++
++_NUM = r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?"
++
++
++def parse_interval(value: str) -> tuple[float, float] | None:
++    """'<4' -> (-inf, 4); '>=10' -> (10, inf); '[3.6,8)' -> (3.6, 8). Other values -> None."""
++    v = value.strip().replace(" ", "")
++    if m := re.fullmatch(rf"<({_NUM})", v):
++        return -math.inf, float(m.group(1))
++    if m := re.fullmatch(rf">=?({_NUM})", v):
++        return float(m.group(1)), math.inf
++    if m := re.fullmatch(rf"[\[(]({_NUM}),({_NUM})[\])]", v):
++        return float(m.group(1)), float(m.group(2))
++    return None
++
++
++def item_alarm(item: str, s: dict | None = None) -> str | None:
++    """Name of the limit an item lies entirely beyond, or None."""
++    s = s or load_settings()
++    if "=" not in item:
++        return None
++    var, value = item.split("=", 1)
++    iv = parse_interval(value)
++    if iv is None:
++        return None
++    lo, hi = iv
++    for limit in s["limits"]:
++        if not re.match(limit["pattern"], var):
++            continue
++        if "low" in limit and hi <= limit["low"]:
++            return limit["name"]
++        if "high" in limit and lo >= limit["high"]:
++            return limit["name"]
++        if "abs" in limit and (hi <= -limit["abs"] or lo >= limit["abs"]):
++            return limit["name"]
++    return None
++
++
++def classify_rule(rule: dict, s: dict | None = None) -> dict:
++    """{'anomaly': 0/1, 'alarms': 'low_cop; ...'} for a rule in the team's rule format."""
++    items = list(rule.get("antecedent", ())) + list(rule.get("consequent", ()))
++    alarms = sorted({a for a in (item_alarm(i, s) for i in items) if a})
++    return {"anomaly": int(bool(alarms)), "alarms": "; ".join(alarms)}
++
++
++def classify_rules(rules: list[dict], s: dict | None = None) -> pd.DataFrame:
++    s = s or load_settings()
++    rows = []
++    for k, r in enumerate(rules):
++        c = classify_rule(r, s)
++        rows.append({"rule_id": k, "antecedent": " & ".join(r["antecedent"]),
++                     "consequent": " & ".join(r["consequent"]), **c})
++    return pd.DataFrame(rows)
++
++
++def detection_metrics(y_true, y_pred) -> dict:
++    """Binary detection accuracy, FAR and MAR (paper Eq. 23-24) for Table 3.
++
++    Works for the baseline (0/1) and for LLM labels (0-3): anything non-zero is "anomaly".
++    Ground-truth values None or -1 (ambiguous) are dropped.
++    """
++    pairs = [(t, p) for t, p in zip(y_true, y_pred) if t is not None and t != -1]
++    yt = np.array([int(t) != 0 for t, _ in pairs])
++    yp = np.array([int(p) != 0 for _, p in pairs])
++    tp, fp, fn = int(np.sum(yt & yp)), int(np.sum(~yt & yp)), int(np.sum(yt & ~yp))
++    n = len(pairs)
++
++    def div(a, b):
++        return a / b if b else float("nan")
++
++    return {"n": n, "detection_accuracy": div(int(np.sum(yt == yp)), n),
++            "far": div(fp, tp + fp), "mar": div(fn, tp + fn), "tp": tp, "fp": fp, "fn": fn}
++
++
++# ---------------------------------------------------------------------------
++# Script
++# ---------------------------------------------------------------------------
++
++def _load_processed(stem: str) -> pd.DataFrame | None:
++    for ext, reader in [(".parquet", pd.read_parquet), (".pkl", pd.read_pickle)]:
++        p = ROOT / "data" / "processed" / f"{stem}{ext}"
++        if p.exists():
++            return reader(p)
++    return None
++
++
++def to_15min(df: pd.DataFrame) -> pd.DataFrame:
++    """Same resampling as notebooks/04_discretise.ipynb: 15-min means, status = on if on most of the time."""
++    if isinstance(df.index, pd.DatetimeIndex) and df.index.to_series().diff().median() < pd.Timedelta("15min"):
++        df = df.resample("15min").mean()
++        sta = [c for c in df.columns if re.search(r"_STA_\d$", c)]
++        df[sta] = (df[sta] > 0.5).astype(float)
++    return df
++
++
++def main():
++    s = load_settings()
++    ff = _load_processed("ChillerPlant")
++    if ff is None:
++        print("data/processed/ChillerPlant.parquet (or .pkl) not found - run the preprocessing notebook first")
++        return
++    faults = {}
++    for stem in FAULT_FILES:
++        df = _load_processed(stem)
++        if df is None:
++            print(f"missing {stem}, skipped")
++            continue
++        faults[stem.replace("ChillerPlant_", "")] = to_15min(df)
++    print(check_limits(to_15min(ff), s).to_string(index=False), "\n")
++    table = evaluate_rows(to_15min(ff), faults, s)
++    out = ROOT / "results" / "tables" / "baseline_threshold_rows.csv"
++    out.parent.mkdir(parents=True, exist_ok=True)
++    table.to_csv(out, index=False)
++    print(table.to_string(index=False))
++    print("saved", out.relative_to(ROOT))
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/tests/test_baseline_threshold.py b/tests/test_baseline_threshold.py
+new file mode 100644
+index 0000000..f30507c
+--- /dev/null
++++ b/tests/test_baseline_threshold.py
+@@ -0,0 +1,124 @@
++"""Tests for src/baseline_threshold.py on synthetic data with a known answer.
++Run: python tests/test_baseline_threshold.py"""
++import sys
++from pathlib import Path
++sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
++
++import numpy as np
++import pandas as pd
++from src import baseline_threshold as bt
++
++S = bt.load_settings()
++rng = np.random.default_rng(0)
++n = 1000
++idx = pd.date_range("2018-01-01", periods=n, freq="15min")
++
++
++def plant(n_chl_on=1.0):
++    """Healthy plant at this site's real ranges, chiller 1 and tower 1 running: COP ~2.5, delta T ~10 F, approach ~8 F."""
++    df = pd.DataFrame(index=idx)
++    df["CWL_PRI_SW_TEMPSPT"] = 44.0
++    df["CHL_SW_TEMP_1"] = 44.0 + rng.normal(0, 0.3, n)
++    df["CHL_RW_TEMP_1"] = df["CHL_SW_TEMP_1"] + 10 + rng.normal(0, 0.5, n)
++    df["CHL_CW_FLOW_1"] = 1200.0
++    df["CHL_POW_1"] = 1200 * 10 / 24 * 3.517 / 2.5
++    df["CHL_STA_1"] = n_chl_on
++    df["OA_TEMP_WB"] = 70 + rng.normal(0, 1, n)
++    df["CT_SW_TEMP_1"] = df["OA_TEMP_WB"] + 8 + rng.normal(0, 0.5, n)
++    df["CT_STA_1"] = 1.0
++    return df
++
++
++# 1. derived metrics have the expected values
++d = bt.add_baseline_metrics(plant())
++assert abs(d["CHL_COP_1"].median() - 2.5) < 0.1
++assert abs(d["CHL_DT_1"].median() - 10) < 0.2
++assert abs(d["CT_APPROACH_1"].median() - 8) < 0.2
++assert abs(d["CHL_SPT_DEV_1"].median()) < 0.1
++
++# 2. a healthy plant raises (almost) no flags with the plant limits ...
++ff = plant()
++assert bt.flag_rows(ff, S)["any"].mean() < 0.01
++# ... whereas textbook limits (COP < 4, approach > 10 would be fine) flag every healthy row
++textbook = {**S, "limits": [{**l, "low": 4.0} if l["name"] == "low_cop" else l for l in S["limits"]]}
++assert bt.flag_rows(ff, textbook)["low_cop"].mean() > 0.99
++
++# 2b. each of the four limits catches its own fault and nothing else
++cases = {
++    "low_cop":       lambda d: d.assign(CHL_POW_1=d["CHL_POW_1"] * 2.5 / 1.6),          # COP 2.5 -> 1.6
++    "low_delta_t":   lambda d: d.assign(CHL_RW_TEMP_1=d["CHL_SW_TEMP_1"] + 2.5,          # delta T 10 -> 2.5 F
++                                        CHL_CW_FLOW_1=1200.0 * 10 / 2.5),                # same load, so COP unchanged
++    "setpoint_dev":  lambda d: d.assign(CHL_SW_TEMP_1=d["CHL_SW_TEMP_1"] + 3,            # supply 3 F above set-point
++                                        CHL_RW_TEMP_1=d["CHL_RW_TEMP_1"] + 3),
++    "high_approach": lambda d: d.assign(CT_SW_TEMP_1=d["CT_SW_TEMP_1"] + 5),             # approach 8 -> 13 F
++}
++for name, fault in cases.items():
++    f = bt.flag_rows(fault(plant()), S)
++    assert f[name].mean() > 0.95, (name, f.mean())
++    others = [c for c in f.columns if c not in (name, "any")]
++    assert f[others].to_numpy().mean() < 0.01, (name, f.mean())
++
++# 2c. check_limits: healthy medians sit inside the limits, ~0 % of healthy rows beyond them
++cl = bt.check_limits(ff, S).set_index("limit")
++assert abs(cl.loc["low_cop", "median"] - 2.5) < 0.1 and abs(cl.loc["high_approach", "median"] - 8) < 0.2
++assert (cl["healthy beyond (%)"] < 1).all(), cl
++
++# 3. tower fouling (approach +6 F -> 14 F) is caught by high_approach only
++foul = plant()
++foul["CT_SW_TEMP_1"] += 6
++f = bt.flag_rows(foul, S)
++assert f["high_approach"].mean() > 0.95 and f["low_cop"].mean() < 0.01
++
++# 4. a stopped unit is never flagged
++off = plant(n_chl_on=0.0)
++off["CHL_POW_1"] = 0.0
++assert bt.flag_rows(off, S)[["low_cop", "low_delta_t", "setpoint_dev"]].to_numpy().sum() == 0
++
++# 5. persistence: isolated one-row spikes are dropped when min_consecutive = 3
++spikes = plant()
++spikes.iloc[::50, spikes.columns.get_loc("CT_SW_TEMP_1")] += 10
++assert bt.flag_rows(spikes, S)["high_approach"].sum() >= n // 50 - 1
++assert bt.flag_rows(spikes, {**S, "min_consecutive": 3})["high_approach"].sum() == 0
++
++# 6. evaluate_rows: fault-free ~0 %, fouling ~100 %
++t = bt.evaluate_rows(ff, {"fouling": foul}, S)
++assert t.loc[0, "flagged (%)"] < 1 and t.loc[1, "flagged (%)"] > 95
++
++# 7. interval parsing and rule-level classification (paper Table 3 setting)
++assert bt.parse_interval("<4") == (-np.inf, 4.0)
++assert bt.parse_interval(">=10.5") == (10.5, np.inf)
++assert bt.parse_interval("[3.6,8)") == (3.6, 8.0)
++assert bt.parse_interval("on") is None
++rules = [
++    {"antecedent": ("CHL_DT_1=<3.6",), "consequent": ("CHL_POW_1=<100",)},                 # paper Case 2 -> 1
++    {"antecedent": ("CT_APPROACH_1=[11.5,14)", "CT_FAN_SPD_1=>=0.8"), "consequent": ("CHL_COP_1=[2,3)",)},  # -> 1
++    {"antecedent": ("CHL_COP_1=[2.2,2.8)",), "consequent": ("OA_TEMP=[60,80)",)},          # normal for this plant -> 0
++    {"antecedent": ("CHL_COP_1=[1.5,2.5)",), "consequent": ("CHL_STA_1=on",)},             # straddles 2.0 -> 0
++    {"antecedent": ("CHL_SPT_DEV_1=>=2.5",), "consequent": ("CHL_POW_1=>=300",)},           # -> 1
++    {"antecedent": ("CHL_SPT_DEV_1=<-3",), "consequent": ("CHL_POW_1=>=300",)},             # -> 1
++]
++pred = bt.classify_rules(rules, S)
++assert pred["anomaly"].tolist() == [1, 1, 0, 0, 1, 1], pred
++assert pred.loc[1, "alarms"] == "high_approach"
++# a COP interval that is only low by textbook standards is normal here
++assert bt.classify_rule({"antecedent": ("CHL_COP_1=<3",), "consequent": ()}, S)["anomaly"] == 0
++assert bt.classify_rule({"antecedent": ("CHL_COP_1=<1.8",), "consequent": ()}, S)["anomaly"] == 1
++
++# 8. detection metrics: ambiguous truth dropped, LLM labels 0-3 binarised
++m = bt.detection_metrics([2, 3, 0, 0, -1, None], [1, 0, 0, 2, 1, 1])
++assert m["n"] == 4 and m["tp"] == 1 and m["fp"] == 1 and m["fn"] == 1
++assert abs(m["detection_accuracy"] - 0.5) < 1e-9 and abs(m["far"] - 0.5) < 1e-9
++
++# 9. the limits match the intervals actually mined from this plant (results/breakpoints.json):
++#    CT_APPROACH_1 is cut at [8.0, 9.8] and CHL_DT_1 at [1.4, 3.6, ...], so the top / bottom
++#    intervals must raise an alarm, and the healthy middle ones must not
++import json
++bp = json.loads((bt.ROOT / "results" / "breakpoints.json").read_text())
++approach_limit = next(l["high"] for l in S["limits"] if l["name"] == "high_approach")
++assert bp["CT_APPROACH_1"]["breaks"][-1] >= approach_limit
++for item, expected in [("CT_APPROACH_1=>=9.8", 1), ("CT_APPROACH_1=[8,9.8)", 0),
++                       ("CHL_DT_1=<1.4", 1), ("CHL_DT_1=[1.4,3.6)", 1), ("CHL_DT_1=[3.6,5.6)", 0),
++                       ("CHL_COP_1=<1.9", 1), ("CHL_COP_1=[1.9,2.9)", 0)]:
++    assert bt.classify_rule({"antecedent": (item,), "consequent": ()}, S)["anomaly"] == expected, item
++
++print("all baseline_threshold tests passed")
+-- 
+2.43.0
+

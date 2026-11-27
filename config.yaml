@@ -39,12 +39,6 @@ rag:
   embedding_model: all-MiniLM-L6-v2
   top_k: 5
 
-labelling:                 # ground-truth scheme (report/labelling_scheme.md)
-  new_support: 0.02        # paper theta_s: below this support in the fault-free file a rule counts as new
-  stable_delta: 0.10       # our choice: |conf_F - conf_0| below this -> normal (label 0)
-  changed_delta: 0.20      # our choice: at or above this (or new) + affected variable -> anomaly
-  hops: 2                  # affected set = fault roots + nodes within 2 hops (same k as mining)
-
 labels:
   0: invalid / normal
   1: design anomaly
@@ -66,3 +60,11 @@ discretise:
   n_grid: 40               # our choice: candidate split points = 40 quantiles
   target: PLANT_COP        # our choice: efficiency band used as the entropy target
   target_bins: 3           # low / medium / high
+
+baseline:                  # threshold baseline for the paper's Table 3 (src/baseline_threshold.py, Member C)
+  min_consecutive: 1       # our choice: consecutive rows a limit must be broken before flagging (1 = no persistence)
+  limits:                  # units as in the LBNL data (degF); a running unit is flagged when it breaks a limit
+    - {name: low_cop,       pattern: '^CHL_COP_\d$',     low: 2.0}    # this plant: normal chiller COP ~2.5 (not textbook 4-6)
+    - {name: high_approach, pattern: '^CT_APPROACH_\d$', high: 9.8}   # this plant: matches the fitted CT_APPROACH_1 breakpoint, so rule items '>=9.8' alarm (11 never matched a mined interval)
+    - {name: low_delta_t,   pattern: '^CHL_DT_\d$',      low: 3.6}    # paper Case 2: delta T < 2 degC = 3.6 degF
+    - {name: setpoint_dev,  pattern: '^CHL_SPT_DEV_\d$', abs: 2.0}    # knowledge base: supply within ~1 degF of set-point
