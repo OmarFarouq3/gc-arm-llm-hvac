@@ -7,9 +7,11 @@ Every rule mined from a fault file F is compared with the fault-free transaction
     delta          = |conf_F - conf_0|            (None if the antecedent never occurs in T0)
     A(F)           = root variables of F plus every node within `hops` hops in the graph
 
+    new              supp_0 < new_support and (conf_0 is None or delta >= stable_delta)
     normal (0)       supp_0 >= new_support and delta < stable_delta
-    anomaly (cat F)  (supp_0 < new_support or delta >= changed_delta) and the rule uses A(F)
-    ambiguous (None) everything else (excluded from the evaluation)
+    anomaly (cat F)  (new or delta >= changed_delta) and the rule uses A(F)
+    ambiguous (None) everything else (excluded from the evaluation), including a rare
+                     rule whose confidence is unchanged (supp_0 < new_support, delta < stable_delta)
 
 Thresholds come from config.yaml -> labelling.
 The LLM never sees supp_0, conf_0, delta, the fault name or the affected set.
@@ -39,8 +41,9 @@ FAULTS = {
     "bypass_stuck": (2, ("TWV_CTRL",)),
     "coolingtower_PI": (2, ("CT_FAN_SPD_CTRL_1", "CT_FAN_SPD_CTRL_2", "CT_FAN_SPD_CTRL_3")),
     "coolingtower_fouling": (3, ("CT_SW_TEMP_1", "CT_APPROACH_1")),
-    "chiller_fouling": (3, ("CHL_COP_1", "CHL_COP_2", "CHL_COP_3",
-                            "CHL_CDDT_1", "CHL_CDDT_2", "CHL_CDDT_3")),
+    # chiller_fouling_065 fouls chiller 1: median CHL_COP_1 2.48 -> 1.48 vs the fault-free
+    # year, while CHL_COP_2 (2.30 -> 2.12) and CHL_COP_3 (2.05 -> 2.27) barely move
+    "chiller_fouling": (3, ("CHL_COP_1", "CHL_CDDT_1")),
 }
 
 # fault type -> file used for labelling (highest severity), names as in data/processed
@@ -169,12 +172,15 @@ def label_rule(rule: dict, transactions_0, affected: set[str], category: int,
     supp_0, conf_0 = stats["support"], stats["confidence"]
     delta = None if conf_0 is None else abs(float(out["confidence"]) - conf_0)
 
-    is_new = conf_0 is None or supp_0 < s["new_support"] - _EPS
+    low_support = supp_0 < s["new_support"] - _EPS
     stable = delta is not None and delta < s["stable_delta"] - _EPS
+    # "new" = rare without the fault AND not just as reliable there; a rare rule whose
+    # confidence is unchanged is not evidence of the fault -> ambiguous
+    is_new = low_support and not stable
     changed = is_new or (delta is not None and delta >= s["changed_delta"] - _EPS)
     uses_affected = bool(rule_variables(out) & set(affected))
 
-    if not is_new and stable:
+    if not low_support and stable:
         status, label = "normal", 0
     elif changed and uses_affected:
         status, label = "anomaly", int(category)
