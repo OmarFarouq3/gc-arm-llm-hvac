@@ -18,10 +18,11 @@ SETTINGS = {"new_support": 0.02, "stable_delta": 0.10, "changed_delta": 0.20, "h
 #   40 x {A=x, B=y}, 10 x {A=x, B=z}  -> conf(A=x -> B=y) = 0.8, support 0.4
 #   25 x {E=lo, F=hi}, 25 x {E=lo, F=lo} -> conf(E=lo -> F=hi) = 0.5, support 0.25
 #   C=hi never occurs
-T0 = ([{"A=x", "B=y"}] * 40 + [{"A=x", "B=z"}] * 10
+#   1 x {A=x, B=z, G=a, H=b} -> rule G=a -> H=b: support 0.01 (rare), conf 1.0
+T0 = ([{"A=x", "B=y"}] * 40 + [{"A=x", "B=z"}] * 9 + [{"A=x", "B=z", "G=a", "H=b"}]
       + [{"E=lo", "F=hi"}] * 25 + [{"E=lo", "F=lo"}] * 25)
 
-AFFECTED = {"C", "E", "F"}      # toy affected set
+AFFECTED = {"C", "E", "F", "G"}      # toy affected set
 CATEGORY = 3
 
 
@@ -65,6 +66,19 @@ def test_ambiguous_changed_but_not_affected():
     assert r["status"] == "ambiguous" and r["label"] is None
 
 
+def test_ambiguous_low_support_unchanged_confidence():
+    # rare in the fault-free file (support 0.01) but just as reliable there -> not "new"
+    r = label_rule(rule(("G=a",), ("H=b",), 1.0), T0, AFFECTED, CATEGORY, SETTINGS)
+    assert abs(r["supp_0"] - 0.01) < 1e-9 and abs(r["delta"]) < 1e-9
+    assert r["status"] == "ambiguous" and r["label"] is None
+
+
+def test_anomaly_low_support_confidence_changed():
+    # rare in the fault-free file and confidence moved by 0.15 (>= stable_delta) -> new
+    r = label_rule(rule(("G=a",), ("H=b",), 0.85), T0, AFFECTED, CATEGORY, SETTINGS)
+    assert r["status"] == "anomaly" and r["label"] == CATEGORY
+
+
 def test_boundaries():
     # delta exactly 0.10 is not "stable"; delta exactly 0.20 counts as "changed"
     r = label_rule(rule(("E=lo",), ("F=hi",), 0.60), T0, AFFECTED, CATEGORY, SETTINGS)
@@ -94,6 +108,13 @@ def test_affected_set_uses_graph():
     assert "CT_FLOW_1" in a and "OA_TEMP_WB" in a        # 1 hop
     assert "CHL_SW_TEMP_1" not in a                      # far away
     assert affected_set("coolingtower_fouling", k=0) == {"CT_SW_TEMP_1", "CT_APPROACH_1"}
+
+
+def test_chiller_fouling_only_chiller_1():
+    assert FAULTS["chiller_fouling"] == (3, ("CHL_COP_1", "CHL_CDDT_1"))
+    a = affected_set("chiller_fouling", k=2)
+    assert "CHL_POW_1" in a and "CHL_COOL_1" in a
+    assert not any(v.endswith("_2") or v.endswith("_3") for v in a)   # no other chiller
 
 
 def test_label_rules_counts():
