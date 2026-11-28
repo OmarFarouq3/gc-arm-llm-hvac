@@ -78,6 +78,8 @@ Why the affected-set check: a fault running for a whole year changes many things
 that has nothing to do with the faulty component is more likely a side effect or noise than a
 diagnosis of the fault, so we do not count it either way.
 
+new (supp_0 < 0.02 and (conf_0 undefined or delta >= 0.10)) or delta >= 0.20, and the rule uses at least one variable in A(F) → category of F
+
 ## 5. Checking the automatic labels by hand
 
 Before the main experiments (and **before looking at LLM results**, so the thresholds are not tuned
